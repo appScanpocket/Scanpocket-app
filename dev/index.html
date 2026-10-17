@@ -57,7 +57,6 @@ h2{margin:0 0 12px;font:700 24px "Barlow Condensed",Barlow,system-ui,sans-serif}
 /* En-tete bleu marine (reprise de l'application existante) */
 header{background:var(--head);color:var(--headtxt);padding:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 header h1{margin:0;font:700 30px/1.1 "Barlow Condensed",Barlow,system-ui,sans-serif;letter-spacing:.2px}
-#count{margin:4px 0 0;color:var(--acc);font-weight:600}
 #hv{font:600 14px Barlow,system-ui,sans-serif;color:var(--acc);margin-left:6px;letter-spacing:0}
 #sync{min-height:36px;border:1px solid var(--acc);background:transparent;color:var(--acc);border-radius:999px;padding:4px 12px;font:600 14px Barlow,system-ui,sans-serif;cursor:pointer;white-space:nowrap}
 #sync.off{color:#FFB4A9;border-color:#FFB4A9}
@@ -1734,7 +1733,6 @@ function texteSynchro(auth, etat, horsLigne) {
   if (!etat.dernierOk) return { texte: 'En attente de synchro', hors: false };
   return { texte: 'Synchronisé ' + new Date(etat.dernierOk).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }), hors: false };
 }
-function texteReferences(n) { return n + (n > 1 ? ' références' : ' référence'); }
 /* Photos : reglage (active ou non, lu dans reglages/photos) et miniatures de 96 px lues sur Firebase,
    gardees en memoire le temps de la session seulement (comme l'ancienne application). Aucun acces a l'ecran. */
 var KPH = 'scanpocket_photos_v1';
@@ -3804,6 +3802,8 @@ function controlerAlias(alias) {
   var a = String(alias || '').trim();
   return a ? (a.length > 40 ? "L'alias fait 40 caractères au plus" : '') : "L'alias est obligatoire";
 }
+/* les droits que le script doit avoir (appsscript.json) ; le diagnostic compare par la fin du nom */
+var DROITS_SCRIPT = ['script.send_mail', 'script.external_request', 'firebase.database', 'userinfo.email', 'script.scriptapp', 'identitytoolkit', 'cloud-platform'];
 var Utilisateurs = (function () {
   var data = {}, annu = {}; /* personnes (cle = code) et annuaire brut { code: { alias, etat } } lus sur le serveur */
   var moiCode = function () { return auteurCourant(); };
@@ -3915,7 +3915,12 @@ var Utilisateurs = (function () {
         /* acces du compte du script a la base : « ok », ou « refusee (HTTP 401) » (le compte n'est pas proprietaire du projet Firebase), ou « injoignable » ; absent = ancienne version du script */
         var baseOk = r.base === undefined || r.base === 'ok';
         var accesBase = r.base === undefined ? '' : ' Accès à la base : ' + (r.base === 'ok' ? 'ok.' : 'PROBLÈME — ' + r.base + ' : le compte qui exécute le script doit être propriétaire du projet Firebase.');
-        return { ok: true, bon: !!r.cloudPlatform && baseOk, texte: 'Script version ' + r.version + ' — droits présents dans le jeton : ' + liste + '.' + accesBase + ' ' + (r.cloudPlatform ? '« cloud-platform » est PRÉSENT : la cause du refus est ailleurs (API ou rôle du projet).' : '« cloud-platform » est ABSENT : l\'autorisation du propriétaire n\'est pas accordée pour le déploiement actif (dans l\'éditeur du script, choisir la fonction « autoriser » > Exécuter, accepter l\'écran d\'autorisation avec le compte propriétaire, puis redéployer en nouvelle version).') };
+        /* version du script, avec la date (AAAA-MM-JJ -> JJ/MM/AAAA) et l'heure de sa preparation quand le script les donne */
+        var d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(r.date || ''), quand = d ? ' du ' + d[3] + '/' + d[2] + '/' + d[1] + (r.heure ? ' ' + r.heure : '') : '';
+        var manquants = DROITS_SCRIPT.filter(function (n) { return !(r.scopes || []).some(function (s) { return String(s).slice(-n.length) === n; }); });
+        var bon = !!r.cloudPlatform && baseOk && !manquants.length;
+        if (bon && r.base === 'ok') return { ok: true, bon: true, texte: 'Script version ' + r.version + quand + ' — tout est en ordre : les ' + DROITS_SCRIPT.length + ' droits sont présents et la base répond.' };
+        return { ok: true, bon: bon, texte: 'Script version ' + r.version + quand + ' — droits présents dans le jeton : ' + liste + '.' + (manquants.length ? ' DROITS MANQUANTS : ' + manquants.join(', ') + '.' : '') + accesBase + ' ' + (r.cloudPlatform ?(baseOk ? '« cloud-platform » est PRÉSENT.' : '« cloud-platform » est PRÉSENT : la cause du refus est ailleurs (API ou rôle du projet).') :'« cloud-platform » est ABSENT : l\'autorisation du propriétaire n\'est pas accordée pour le déploiement actif (dans l\'éditeur du script, choisir la fonction « autoriser » > Exécuter, accepter l\'écran d\'autorisation avec le compte propriétaire, puis redéployer en nouvelle version).') };
       }, function (err) { return { ok: false, bon: false, texte: 'Service e-mail non joignable (' + (err && err.message ? err.message : 'erreur réseau ou autorisation du script') + ')' }; });
     },
     /* SUPPRIMER LE COMPTE DE CONNEXION (global, une seule fois) : l'adresse n'est envoyee qu'au script, jamais ecrite dans la base ; le script refuse s'il reste une fiche dans un environnement */
@@ -3984,6 +3989,17 @@ function normaliserRegles(brut) {
   Object.keys(sc).forEach(function (k) { var s = sc[k]; if (!s) return; s.roles = listeFirebase(s.roles); s.people = listeFirebase(s.people); planifies[k] = s; });
   return { regles: regles, planifies: planifies };
 }
+/* texte affiche quand la lecture du journal des e-mails echoue : le code HTTP et la cause probable (jamais de jeton ni d'adresse ; e.message = code HTTP pour la base) */
+function causeLectureJournal(e) {
+  var m = String(e && e.message ? e.message : e);
+  if (m === '400') return 'Chargement impossible (HTTP 400) : la base refuse la requete, probablement un index manquant sur emails/t dans les regles publiees.';
+  if (m === '401') return 'Chargement impossible (HTTP 401) : session refusee par la base, reconnecte-toi.';
+  if (m === '403') return 'Chargement impossible (HTTP 403) : les regles refusent la lecture de emails (droits Admin ou SecurityOfficer requis, ou regles non a jour).';
+  if (/^\d{3}$/.test(m)) return 'Chargement impossible (HTTP ' + m + ').';
+  if (m === 'noauth') return 'Chargement impossible : session expiree, reconnecte-toi.';
+  return 'Chargement impossible (' + (e && e.name === 'AbortError' ? 'delai depasse' : 'reseau ou erreur : ' + m.slice(0, 80)) + ').';
+}
+function causeAffichageJournal(e) { return 'Journal lu mais affichage impossible (erreur : ' + String(e && e.message ? e.message : e).slice(0, 80) + ').'; }
 /* destinataires d'une regle, en clair ; utilisateurs = contenu de personnes */
 function descriptionDestinataires(r, utilisateurs) {
   if (!r) return 'personne';
@@ -4244,9 +4260,9 @@ var Veille = (function () {
     reveiller: function () { if (!endormi) return; endormi = false; derniere = Date.now(); if (rappels.reveiller) rappels.reveiller(); }
   };
 })();
-/* En-tete de l'application : titre + version + roles, nombre de references, bouton de synchro (HTML pur) */
-function htmlEntete(version, envNom, roles, nbRefs, sync) {
-  return '<div class="htit"><h1>Scanpocket <small id="hv">v' + esc(version) + (envNom && envNom !== 'PROD' ? ' · ' + esc(envNom) : '') + (roles && roles.length ? ' · ' + roles.map(function (r) { return esc(libelleRole(r)); }).join('+<wbr>') : '') + '</small></h1><p id="count">' + esc(texteReferences(nbRefs)) + '</p></div>' +
+/* En-tete de l'application : titre + version + environnement + roles, bouton de synchro (HTML pur) */
+function htmlEntete(version, envNom, roles, sync) {
+  return '<div class="htit"><h1>Scanpocket <small id="hv">v' + esc(version) + (envNom && envNom !== 'PROD' ? ' · ' + esc(envNom) : '') + (roles && roles.length ? ' · ' + roles.map(function (r) { return esc(libelleRole(r)); }).join('+<wbr>') : '') + '</small></h1></div>' +
     '<button id="sync" type="button"' + (sync.hors ? ' class="off"' : '') + '>' + esc(sync.texte) + '</button>';
 }
 /* Fenetre d'information : sert aussi aux elements pas encore branches dans DEV */
@@ -5248,7 +5264,15 @@ function htmlUtilisateurFiche(f) {
 function htmlUtilisateurPied(nouvelle, verrouillee) { return '<div class="row"><button type="button" class="btn cancel" id="udx">Annuler</button>' + (verrouillee ? '' : '<button type="button" class="btn pri" id="udv">' + (nouvelle ? 'Ajouter' : 'Enregistrer') + '</button>') + '</div>'; }
 /* Ecrans « E-mails » (HTML pur) : regles par evenement, envois planifies, editeur d'une regle, journal des e-mails envoyes */
 var JOURS_MIN_NETTOYAGE_MAIL = 30; /* le service refuse un nettoyage de moins de 30 jours (contrat Code.gs, action clean : 30 a 3650) */
-var DUREES_MAIL = [['30', '1 mois'], ['90', '3 mois'], ['180', '6 mois'], ['365', '12 mois'], ['0', 'Toujours']];
+/* nettoyage MANUEL du journal : 0 = tout supprimer (code de confirmation), reserve au SuperAdmin (droit « purge ») ; le nettoyage AUTOMATIQUE (DUREES_MAIL) n'offre pas cette option */
+var DUREES_NETTOYAGE_MAIL = [['30', '1 mois'], ['90', '3 mois'], ['180', '6 mois'], ['365', '12 mois'], ['1095', '3 ans']];
+/* message ou '' : 0 (tout) reserve au SuperAdmin, sinon 30 jours au minimum (fonction pure, appelee avant toute requete) */
+function refusNettoyageMail(jours, roles) {
+  if (jours === 0) return peut('purge', roles) ? '' : 'Tout supprimer : réservé au SuperAdmin';
+  return jours >= JOURS_MIN_NETTOYAGE_MAIL ? '' : 'Durée minimale : ' + JOURS_MIN_NETTOYAGE_MAIL + ' jours' + (peut('purge', roles) ? ', ou « Tout supprimer »' : '');
+}
+function dureesNettoyageMail(roles) { return peut('purge', roles) ? DUREES_NETTOYAGE_MAIL.concat([['0', 'Tout supprimer (tout le journal)']]) : DUREES_NETTOYAGE_MAIL; }
+var DUREES_MAIL =[['30', '1 mois'], ['90', '3 mois'], ['180', '6 mois'], ['365', '12 mois'], ['0', 'Toujours']];
 function htmlOptions(liste, choisi) { return liste.map(function (x) { return '<option value="' + esc(x[0]) + '"' + (String(x[0]) === String(choisi) ? ' selected' : '') + '>' + esc(x[1]) + '</option>'; }).join(''); }
 function htmlEmailsEntete() { return '<h2>E-mails</h2><p class="sub">Quand un événement arrive dans l\'application, un e-mail part aux personnes choisies. Coche les événements à signaler, puis « Modifier » pour choisir qui reçoit.</p>'; }
 /* d = { regles, planifies, utilisateurs, declencheur, duree, url, message, lectureSeule } ; lectureSeule (SecurityOfficer) : tout est grise sauf le journal */
@@ -5339,8 +5363,8 @@ function htmlMailJournalListe(lignes) {
     return '<div class="snap" style="display:block"><b>' + esc(x.subject || x.ev) + '</b><small>' + esc(x.at || '') + ' · ' + esc(x.ev || '') + (x.to ? ' → ' + esc(aliasDe(x.to)) : '') + '</small><small style="' + (x.ok === false ? 'color:var(--bad);font-weight:700' : '') + '">' + (x.ok === false ? '✗ Échec : ' + esc(x.err || '') : '✓ Envoyé') + (x.by ? ' · déclenché par ' + esc(aliasDe(x.by)) : '') + '</small></div>';
   }).join('') : '<p class="hint" style="padding:8px">Aucun e-mail.</p>';
 }
-function htmlMailJournalPied() {
-  return '<label class="fl"><span class="flab">Nettoyer : supprimer ce qui date de plus de</span><select id="mjk">' + htmlOptions([['30', '1 mois'], ['90', '3 mois'], ['180', '6 mois'], ['365', '12 mois'], ['1095', '3 ans']], '365') + '</select></label>' +
+function htmlMailJournalPied(roles) {
+  return '<label class="fl"><span class="flab">Nettoyer : supprimer ce qui date de plus de</span><select id="mjk">' + htmlOptions(dureesNettoyageMail(roles), '365') + '</select></label>' +
     '<div class="row" style="flex-wrap:wrap"><button type="button" class="btn" id="mje" style="flex:1">Export Excel</button><button type="button" class="btn danger" id="mjn" style="flex:1">Nettoyer le journal</button></div><div class="row"><button type="button" class="btn cancel" id="mjx">Fermer</button></div>';
 }
 /* Ecran « Photos » de l'Administration (HTML pur) : le menu (reglage, export/import, entretien) et la vue « travail » d'une operation en masse (message, barre de progression) */
@@ -7212,14 +7236,17 @@ function ouvrirJournalMail() {
   var d = fenetreAction('mjdlg', 'mjh', 'mjb', 'mjf');
   if (!d.dataset.pret) { d.dataset.pret = '1'; d.addEventListener('click', clicJournalMail); d.addEventListener('input', dessinerJournalMail); }
   mjEtat = { rows: [] };
-  $('mjh').innerHTML = htmlMailJournalEntete(); $('mjb').innerHTML = htmlMailJournalFiltre(); $('mjf').innerHTML = htmlMailJournalPied();
+  $('mjh').innerHTML = htmlMailJournalEntete(); $('mjb').innerHTML = htmlMailJournalFiltre(); $('mjf').innerHTML = htmlMailJournalPied(Roles.liste());
   $('mjl').innerHTML = '<p class="hint" style="padding:8px">Chargement…</p>';
   if (!d.open) d.showModal();
   chargerJournalMail();
 }
 function chargerJournalMail() {
-  Emails.journal().then(function (rows) { mjEtat.rows = rows; dessinerJournalMail(); })
-    .catch(function () { $('mjl').innerHTML = '<p class="hint" style="padding:8px">Chargement impossible (droits Admin requis).</p>'; });
+  /* deux etapes separees : une erreur de lecture (code HTTP) et une erreur d'affichage ne se confondent plus */
+  Emails.journal().then(function (rows) {
+    mjEtat.rows = rows;
+    try { dessinerJournalMail(); } catch (e) { $('mjl').innerHTML = '<p class="hint" style="padding:8px">' + esc(causeAffichageJournal(e)) + '</p>'; }
+  }, function (e) { $('mjl').innerHTML = '<p class="hint" style="padding:8px">' + esc(causeLectureJournal(e)) + '</p>'; });
 }
 function lignesJournalMail() {
   var q = fold($('mjs').value.trim());
@@ -7240,10 +7267,12 @@ function clicJournalMail(ev) {
   }
   if (b.id === 'mjn') {
     var j = Number($('mjk').value), lib = $('mjk').options[$('mjk').selectedIndex].textContent;
-    if (!(j >= JOURS_MIN_NETTOYAGE_MAIL)) { toast('Durée minimale : ' + JOURS_MIN_NETTOYAGE_MAIL + ' jours (le journal garde les traces des restaurations et des suppressions de compte)'); return; }
-    confirmer('Supprimer du journal des e-mails tout ce qui date de plus de ' + lib + " ? Pense à exporter le journal avant : c'est irréversible.", 'Nettoyer', function () {
+    var refus = refusNettoyageMail(j, Roles.liste()); if (refus) { toast(refus); return; } /* garde-fou : aucune requete */
+    var lancer = function () {
       Emails.appeler({ action: 'clean', days: j }).then(function (r) { toast(r.ok ? r.removed + ' ligne(s) supprimée(s)' : 'Refusé : ' + (r.error || 'erreur')); chargerJournalMail(); }).catch(function () { toast('Service e-mail non joignable'); });
-    });
+    };
+    if (j === 0) confirmerCode('Supprimer tout le journal des e-mails', "Tout le journal sera effacé dans l'environnement " + String(ENV.name || 'PROD').toUpperCase() + ". C'est irréversible : pense à exporter le journal avant.", lancer);
+    else confirmer('Supprimer du journal des e-mails tout ce qui date de plus de ' + lib + " ? Pense à exporter le journal avant : c'est irréversible.", 'Nettoyer', lancer);
   }
 }
 /* Ecran « Photos » (Administration) : reglage, export / import en masse (ZIP, fichiers, dossier), comptage, suppression, photos orphelines.
@@ -7892,7 +7921,7 @@ function brancherChampsDate() {
   document.addEventListener('change', function (ev) { if (ev.target.getAttribute && ev.target.hasAttribute('data-calsel')) { ev.stopPropagation(); choisirDateCalendrier(ev.target); } }, true);
 }
 /* Coquille de l'application : choisit l'ecran selon l'etat d'acces (etatAcces), tient la synchro periodique et la mise en veille */
-var VERSION = '1.0.2';
+var VERSION = '1.0.3';
 
 /* accueil : scanner, blocs « A traiter » / valeur / taches (selon le role), liste des pieces, barre du bas */
 function htmlAccueil(auth, roles) {
@@ -7911,7 +7940,7 @@ function brancherNonCables() {
 /* l'en-tete se redessine seul (synchro, hors ligne) sans toucher au reste de l'ecran */
 function majEntete() {
   var h = document.querySelector('header'); if (!h) return;
-  h.innerHTML = htmlEntete(VERSION, String(ENV.name || 'PROD').toUpperCase(), Roles.liste(), Donnees.vivantes().length, texteSynchro(Session.courante(), Donnees.etat(), !navigator.onLine));
+  h.innerHTML = htmlEntete(VERSION, String(ENV.name || 'PROD').toUpperCase(), Roles.liste(), texteSynchro(Session.courante(), Donnees.etat(), !navigator.onLine));
   $('sync').onclick = ouvrirCompte;
 }
 /* fenetre « Mon compte » (clic sur le bouton de synchro), comme l'ancienne application */
