@@ -533,7 +533,7 @@ var Roles = (function () {
         liste = actif ? rolesDeFiche(v) : [];
         Session.definirCode(actif ? code : '');
         sv(KR, { email: a.email, roles: liste });
-        return actif ? 'ok' : 'none';
+        return actif ? Proprietaire.controler().then(function () { return 'ok'; }) : 'none'; /* la copie locale est-elle celle de cette personne ? (l'ecran tranche s'il y a conflit) */
       }).catch(function (e) {
         if (e && e.message === '403') { motif = 'sans-acces'; liste = []; Session.definirCode(''); sv(KR, { email: a.email, roles: liste }); return 'none'; } /* les regles refusent la lecture : pas de pointeur, adresse non verifiee ou fiche retiree */
         return 'error';
@@ -1683,7 +1683,7 @@ var Donnees = (function () {
     /* telecharge les pieces (pas d'envoi pour l'instant) ; true si tout s'est bien passe */
     synchroniser: function () {
       if (enCours) return enCours;
-      if (!Session.courante() || !navigator.onLine || etatAcces(Session.courante(), Roles.liste()) !== 'ok') { prevenir(); return Promise.resolve(false); } /* adresse non verifiee ou sans acces : aucun appel a la base */
+      if (!Session.courante() || !navigator.onLine || etatAcces(Session.courante(), Roles.liste()) !== 'ok' || Proprietaire.bloque()) { prevenir(); return Promise.resolve(false); } /* adresse non verifiee, sans acces, ou copie locale d'une autre personne pas encore tranchee : aucun appel a la base */
       etat.enCours = true; prevenir();
       var t0 = Date.now(), complet, requete;
       enCours = verifierPurge().then(function () {
@@ -1964,10 +1964,12 @@ var Deconnexion = (function () {
   /* efface tout ce que l'appareil garde des donnees : copie locale complete, lignes en attente, copies de securite, file d'e-mails, date de derniere sauvegarde, annuaire */
   function vider() {
     return Stockage.viderToutLeJournal().then(function () { return Donnees.viderCopieLocale(); }).then(function () { return Stockage.viderSauvegardes(); })
-      .then(function () { del(KMQ); del(KSAUVJSON); Annuaire.vider(); Peremption.oublier(); });
+      .then(function () { del(KMQ); del(KSAUVJSON); del(KPROP); Annuaire.vider(); Peremption.oublier(); });
   }
   return {
     enAttente: enAttente,
+    /* vide la copie locale de cet environnement (et le marqueur de proprietaire) SANS fermer la session : « effacer et continuer » de Proprietaire */
+    effacerCopie: function () { return vider(); },
     /* essaie d'envoyer ce qui attend (synchronisation), puis renvoie combien de modifications restent en attente ; n'efface rien */
     /* renvoie { n, m } : n = modifications encore en attente, m = lignes refusees par le serveur (droits) gardees sur l'appareil ; les deux seront perdues a la deconnexion */
     preparer: function () {
@@ -1981,6 +1983,49 @@ var Deconnexion = (function () {
     terminer: function () {
       return vider().catch(function () { /* on se deconnecte quand meme */ }).then(function () { Session.deconnecter(); Roles.oublier(); });
     }
+  };
+})();
+/* Proprietaire de la copie locale de cet appareil (donnees + modifications pas encore envoyees, cles avec le suffixe de l'environnement).
+   Le marqueur est le CODE de la personne (jamais l'adresse). A la connexion : meme code = rien ; autre code, ou copie ancienne sans marqueur qui garde des modifications non envoyees = avertissement,
+   et AUCUN appel a la base (synchro, inventaires) tant que la personne n'a pas repondu : « effacer et continuer » vide la copie de cet environnement, « annuler » deconnecte sans rien effacer.
+   Une session qui expire sans deconnexion garde la copie ET le marqueur (la meme personne retrouve ses modifications). La deconnexion volontaire efface la copie et le marqueur (deconnexion.js). */
+var KPROP = 'scanpocket_proprio_v1' + SFX;
+/* texte de l'avertissement (fonction pure) : proprio = code du marqueur ('' = copie ancienne sans marqueur), n = modifications pas encore envoyees */
+function texteConflitCopie(proprio, n) {
+  var de = proprio ? 'de ' + proprio : 'd\'une personne inconnue';
+  return 'Cet appareil contient des données ' + (n ? '(dont ' + n + ' modification(s) non envoyée(s)) ' : '') + de + ' : les effacer et continuer, ou annuler ? Rien n\'est envoyé ni chargé tant que tu n\'as pas répondu.';
+}
+var Proprietaire = (function () {
+  var verifieCode = null, conflit = null, pourEmail = null; /* verifieCode = code pour lequel la copie est reconnue ; conflit = { proprio, n } */
+  Session.surChangement(function (auth) { if (!auth || auth.email !== pourEmail) { verifieCode = null; conflit = null; pourEmail = auth ? auth.email : null; } });
+  var a0 = Session.courante(); pourEmail = a0 ? a0.email : null;
+  return {
+    marqueur: function () { var m = ld(KPROP, ''); return typeof m === 'string' ? m : ''; },
+    conflit: function () { return conflit; },
+    verifie: function () { var c = auteurCourant(); return !c || verifieCode === c; },
+    /* vrai tant que les appels a la base doivent attendre : avertissement en cours, verification pas faite, ou marqueur d'une autre personne */
+    bloque: function () {
+      if (!Session.courante()) return false;
+      var c = auteurCourant(), m = Proprietaire.marqueur();
+      return !!conflit || (!!c && (verifieCode !== c || (!!m && m !== c)));
+    },
+    /* compare le marqueur au code de la personne connectee ; renvoie { etat: 'ok' } ou { etat: 'conflit', proprio, n }. Ne touche pas a la base. */
+    controler: function () {
+      var c = auteurCourant(); if (!c) return Promise.resolve({ etat: 'ok' });
+      var m = Proprietaire.marqueur();
+      if (m === c) { verifieCode = c; conflit = null; return Promise.resolve({ etat: 'ok' }); }
+      return Deconnexion.enAttente().catch(function () { return 0; }).then(function (n) {
+        if (m || n > 0) { conflit = { proprio: m, n: n }; verifieCode = null; return { etat: 'conflit', proprio: m, n: n }; } /* autre personne, ou copie sans marqueur avec des modifications : le plus sur est de demander */
+        sv(KPROP, c); verifieCode = c; conflit = null; return { etat: 'ok' }; /* copie sans marqueur et sans modification en attente : rien a perdre, la copie devient celle de cette personne */
+      });
+    },
+    /* « effacer et continuer » : vide la copie de cet environnement, puis la copie appartient a la personne connectee */
+    effacer: function () {
+      var c = auteurCourant();
+      return Deconnexion.effacerCopie().then(function () { sv(KPROP, c); verifieCode = c; conflit = null; });
+    },
+    /* « annuler » : deconnexion SANS rien effacer (le marqueur et la copie restent a leur proprietaire) */
+    annuler: function () { conflit = null; verifieCode = null; Session.deconnecter(); Roles.oublier(); }
   };
 })();
 /* Inventaires : sessions d'inventaire communes (noeud inventaires du serveur), lancees et terminees par un Admin ou un SuperUser (regle du serveur).
@@ -2017,7 +2062,7 @@ var Inventaires = (function () {
     vider: function () { sess = []; del(KINV); },
     /* copie locale, puis serveur ; previent les ecrans seulement si quelque chose a change */
     charger: function () {
-      if (!Session.courante() || !navigator.onLine || etatAcces(Session.courante(), Roles.liste()) !== 'ok') return Promise.resolve(); /* adresse non verifiee ou sans acces : aucun appel a la base */
+      if (!Session.courante() || !navigator.onLine || etatAcces(Session.courante(), Roles.liste()) !== 'ok' || Proprietaire.bloque()) return Promise.resolve(); /* adresse non verifiee, sans acces ou copie d'une autre personne pas encore tranchee : aucun appel a la base */
       return Donnees.lireChemin('inventaires').then(function (o) {
         var neuf = Object.keys(o || {}).map(function (k) { var r = o[k]; if (!r || !r.nom) return null; r.id = k; return r; }).filter(Boolean);
         var cle = function (l) { return JSON.stringify(l.slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; })); };
@@ -3742,7 +3787,7 @@ function controlerUtilisateur(data, code, nouveauxRoles, moiCode, mesRoles) {
 }
 function controlerRetrait(data, code, moiCode, mesRoles) {
   var roles = infoUtilisateur((data || {})[code], code).roles;
-  if (code === moiCode) return 'Tu ne peux pas te retirer toi-même';
+  if (code === moiCode) return 'Tu ne peux pas te retirer toi-même : les règles le refusent aussi';
   if (!aRoleAdmin(mesRoles) && aRoleReserve(rolesCompletes(roles))) return 'Réservé aux Admin : un SecurityOfficer ne gère que les rôles Opérateur, Inventaire et Lecteur';
   if (nombreAdmins(data, code, []) < 1) return 'Il doit toujours rester au moins un Admin';
   return '';
@@ -3804,6 +3849,17 @@ function controlerAlias(alias) {
 }
 /* les droits que le script doit avoir (appsscript.json) ; le diagnostic compare par la fin du nom */
 var DROITS_SCRIPT = ['script.send_mail', 'script.external_request', 'firebase.database', 'userinfo.email', 'script.scriptapp', 'identitytoolkit', 'cloud-platform'];
+/* cause d'un echec d'ecriture, sans jeton ni adresse : http = e.message de Donnees.ecrire (code HTTP, ou autre texte pour un probleme de reseau / delai) (fonction pure) */
+function causeHttp(http) {
+  var h = String(http || '');
+  if (h === '401') return 'HTTP 401, session refusée : reconnecte-toi';
+  if (h === '403') return 'HTTP 403, les règles refusent';
+  if (h === '400') return 'HTTP 400, donnée refusée par les règles';
+  if (/^\d{3}$/.test(h)) return 'HTTP ' + h;
+  return 'réseau ou délai dépassé';
+}
+/* « Retrait impossible a l'etape 2/3 (annuaire) : HTTP 403, les regles refusent. <suite> » (fonction pure) */
+function messageEtapeUtilisateur(action, n, total, nom, http, suite) { return action + " impossible à l'étape " + n + '/' + total + ' (' + nom + ') : ' + causeHttp(http) + '.' + (suite ? ' ' + suite : ''); }
 var Utilisateurs = (function () {
   var data = {}, annu = {}; /* personnes (cle = code) et annuaire brut { code: { alias, etat } } lus sur le serveur */
   var moiCode = function () { return auteurCourant(); };
@@ -3812,7 +3868,7 @@ var Utilisateurs = (function () {
   var ca = function (code) { return 'annuaire/' + encodeURIComponent(code); };
   var cacces = function (cle) { return 'acces/' + encodeURIComponent(cle); };
   /* une ecriture dont l'echec est rejete avec { etape: nom } pour dire laquelle a echoue */
-  var etape = function (nom, p) { return p.catch(function () { var e = new Error(nom); e.etape = nom; throw e; }); };
+  var etape = function (nom, p) { return p.catch(function (err) { var e = new Error(nom); e.etape = nom; e.http = err && err.message; throw e; }); }; /* http = code HTTP (ou texte reseau) de l'ecriture qui a echoue */
   /* les trois ecritures d'une fiche, dans l'ordre exige par les regles : personnes, annuaire, puis acces EN DERNIER (il donne l'acces) ; chaque etape se rejoue a l'identique */
   var ecrireEnTrois = function (code, fiche, alias, avecAcces) {
     return etape('personnes', ecrire('PUT', fiche, cp(code))).then(function () {
@@ -3883,30 +3939,49 @@ var Utilisateurs = (function () {
     retirer: function (code) {
       var moi = moiCode(), msg = controlerRetrait(data, code, moi, Roles.liste() || []); if (msg) return Promise.resolve({ ok: false, message: msg });
       var avant = data[code]; if (!avant) return Promise.resolve({ ok: false, message: 'Personne introuvable : ferme et rouvre la liste' });
-      var i = infoUtilisateur(avant, code), alias = (annu[code] && annu[code].alias) || aliasParDefaut(i.name) || code;
-      var fiche = fichePersonne(i.name, i.roles, avant.cle, 'retire', moi, Date.now());
-      return ecrire('PUT', fiche, cp(code)).then(function () {
-        data[code] = fiche;
-        return ecrire('PUT', { alias: alias, etat: 'retire' }, ca(code)).then(function () { annu[code] = { alias: alias, etat: 'retire' }; });
-      }).then(function () { return ecrire('DELETE', undefined, cacces(avant.cle)); }).then(function () {
-        return { ok: true, message: 'Accès retiré (réversible : Ajouter une personne avec la même adresse)' };
-      }, function () { return { ok: false, message: "Retrait incomplet (droits ou réseau ?) : l'accès n'est peut-être pas coupé, réessaie" }; });
+      var i = infoUtilisateur(avant, code), alias = ((annu[code] && annu[code].alias) || aliasParDefaut(i.name) || code).slice(0, 40); /* l'annuaire refuse un alias de plus de 40 caracteres */
+      /* REJOUABLE : une fiche deja « retire » (retrait interrompu apres l'etape 1) ne refait que les etapes 2 et 3 */
+      var reprise = i.etat === 'retire', fiche = fichePersonne(i.name, i.roles, avant.cle, 'retire', moi, Date.now());
+      var p = reprise ? Promise.resolve() : etape('fiche', ecrire('PUT', fiche, cp(code))).then(function () { data[code] = fiche; });
+      return p.then(function () {
+        return etape('annuaire', ecrire('PUT', { alias: alias, etat: 'retire' }, ca(code))).then(function () { annu[code] = { alias: alias, etat: 'retire' }; });
+      }).then(function () { return etape('acces', ecrire('DELETE', undefined, cacces(avant.cle))); }).then(function () {
+        return { ok: true, message: reprise ? 'Retrait terminé : annuaire et pointeur d\'accès à jour' : 'Accès retiré (réversible : Ajouter une personne avec la même adresse)' };
+      }, function (e) {
+        var n = e && e.etape === 'fiche' ? 1 : (e && e.etape === 'annuaire' ? 2 : 3), nom = ['fiche', 'annuaire', 'accès'][n - 1];
+        var suite = n === 1 ? "Rien n'a été modifié."
+          : "La personne ne peut déjà plus se connecter (sa fiche est retirée), mais " + (n === 2 ? "l'annuaire et le pointeur d'accès ne sont pas à jour" : "le pointeur d'accès reste") + " : ouvre sa fiche et appuie sur « Retrait à terminer ».";
+        return { ok: false, etape: n, message: messageEtapeUtilisateur('Retrait', n, 3, nom, e && e.http, suite) };
+      });
     },
     /* ANONYMISER (irreversible, cet environnement seulement) : supprime acces/<cle> et personnes/<code> (le seul lien entre l'adresse et le code), PUIS annuaire/<code> devient « <code> - anonymise ».
        Ne touche pas au compte de connexion (action separee, Code.gs). */
     anonymiser: function (code) {
       var moi = moiCode(), msg = controlerAnonymisation(data, code, moi, Roles.liste() || []); if (msg) return Promise.resolve({ ok: false, message: msg });
-      var avant = data[code]; if (!avant) return Promise.resolve({ ok: false, message: 'Personne introuvable : ferme et rouvre la liste' });
-      var alias = code + ' - anonymise', retiree = infoUtilisateur(avant, code).etat === 'retire';
-      /* une fiche retiree n'a plus de pointeur : l'effacement du pointeur est essaye mais son echec est sans consequence */
-      var effacerAcces = ecrire('DELETE', undefined, cacces(avant.cle));
-      if (retiree) effacerAcces = effacerAcces.catch(function () { /* deja supprime */ });
-      return effacerAcces.then(function () { return ecrire('DELETE', undefined, cp(code)); }).then(function () {
-        delete data[code];
-        return ecrire('PUT', { alias: alias, etat: 'anonymise' }, ca(code)).then(function () { annu[code] = { alias: alias, etat: 'anonymise' }; Annuaire.ajouter(code, alias); return { ok: true, message: 'Personne anonymisée (' + code + ')' }; },
-          function () { return { ok: true, message: 'Fiche supprimée (' + code + "), mais l'alias de l'annuaire n'a pas pu être remplacé : refais « Anonymiser » depuis un Admin ou vérifie les droits" }; });
-      }, function () { return { ok: false, message: "Anonymisation impossible (droits ou réseau ?) : rien n'est perdu, réessaie" }; });
+      var avant = data[code], orphelin = !avant && !!annu[code] && annu[code].etat !== 'anonymise'; /* orphelin : fiche deja supprimee, alias de l'annuaire pas encore remplace (etape 3 a refaire) */
+      if (!avant && !orphelin) return Promise.resolve({ ok: false, message: 'Personne introuvable : ferme et rouvre la liste' });
+      var alias = code + ' - anonymise', retiree = !!avant && infoUtilisateur(avant, code).etat === 'retire';
+      var p = Promise.resolve();
+      if (avant) {
+        /* une fiche retiree n'a plus de pointeur : l'effacement du pointeur est essaye mais son echec est sans consequence */
+        var effacerAcces = etape('acces', ecrire('DELETE', undefined, cacces(avant.cle)));
+        if (retiree) effacerAcces = effacerAcces.catch(function () { /* deja supprime */ });
+        p = effacerAcces.then(function () { return etape('fiche', ecrire('DELETE', undefined, cp(code))); }).then(function () { delete data[code]; });
+      }
+      return p.then(function () {
+        return etape('annuaire', ecrire('PUT', { alias: alias, etat: 'anonymise' }, ca(code))).then(function () { annu[code] = { alias: alias, etat: 'anonymise' }; Annuaire.ajouter(code, alias); });
+      }).then(function () {
+        return { ok: true, message: orphelin ? 'Anonymisation terminée (' + code + ')' : 'Personne anonymisée (' + code + ')' };
+      }, function (e) {
+        var n = e && e.etape === 'acces' ? 1 : (e && e.etape === 'fiche' ? 2 : 3), nom = ['accès', 'fiche', 'annuaire'][n - 1];
+        var suite = n === 1 ? "Rien n'est perdu, réessaie."
+          : n === 2 ? "Le pointeur d'accès est déjà supprimé mais la fiche existe encore : rouvre-la et appuie de nouveau sur « Anonymiser définitivement »."
+            : "La fiche est supprimée mais l'alias de l'annuaire n'est pas encore remplacé : en bas de la liste, ligne « Anonymisation à terminer », appuie sur « Terminer ».";
+        return { ok: false, etape: n, message: messageEtapeUtilisateur('Anonymisation', n, 3, nom, e && e.http, suite) };
+      });
     },
+    /* codes dont l'anonymisation est a terminer : fiche supprimee (absente de personnes) mais alias de l'annuaire pas encore « anonymise » */
+    orphelins: function () { return Object.keys(annu).filter(function (c) { return !(c in data) && annu[c] && annu[c].etat !== 'anonymise'; }).sort(); },
     /* DIAGNOSTIC des autorisations du script (Admin) : liste des droits presents dans le jeton du script ; renvoie { ok, texte, bon } pour l'affichage */
     diagnosticAutorisations: function () {
       return Emails.appeler({ action: 'diagnostic_auth' }).then(function (r) {
@@ -5228,14 +5303,21 @@ function htmlImportPied(peutImporter) { return '<div class="row"><button type="b
 /* Ecran « Utilisateurs et roles » (HTML pur) : la liste des personnes, puis la fiche d'une personne. */
 function htmlUtilisateursEntete(vue, titre) { return vue === 'liste' ? '<h2>Utilisateurs et rôles</h2><p class="sub">Un clic sur une personne ouvre sa fiche. Les rôles se cumulent. Admin peut tout faire. Un compte créé mais non listé n\'accède à rien.</p>' : '<h2>' + esc(titre) + '</h2>'; }
 /* liste : rows = listerUtilisateurs (k = code) ; moiCode ; filtre ; etat = texte de la derniere operation */
-function htmlUtilisateursListe(rows, moiCode, filtre, etat, lecture) {
+function htmlUtilisateursListe(rows, moiCode, filtre, etat, lecture, orphelins) {
   var liste = rows.length ? rows.map(function (x) {
     return '<li data-u="' + esc(x.k) + '"><div class="info"><b>' + esc(x.name || x.code) + (x.k === moiCode ? ' (toi)' : '') + '</b><small>' + esc(x.code + ' · ' + emailDeCle(x.cle)) + '</small></div>' +
       '<div class="chips">' + (x.roles.length ? x.roles.map(function (r) { return '<span class="chip">' + esc(libelleRole(r)) + '</span>'; }).join('') : '<span class="chip">Aucun rôle</span>') + (x.etat === 'retire' ? '<span class="chip">Retirée</span>' : '') + '</div></li>';
   }).join('') : '<li class="empty">' + (lecture ? (filtre ? 'Aucune personne ne correspond.' : 'Aucune personne.') : 'Chargement impossible (droits Admin ou SecurityOfficer requis).') + '</li>';
   return (etat ? '<p class="hint" id="ustat" style="margin:0 0 8px;font-weight:600">' + esc(etat) + '</p>' : '') +
     '<input id="us" type="search" value="' + esc(filtre) + '" placeholder="Rechercher une personne, un e-mail, un rôle" aria-label="Rechercher une personne" style="margin-bottom:8px">' +
-    '<p class="hint" id="uc" style="margin:0 0 6px">' + rows.length + ' personne' + (rows.length > 1 ? 's' : '') + (filtre ? ' trouvée' + (rows.length > 1 ? 's' : '') : '') + '</p><ul id="ul">' + liste + '</ul>';
+    '<p class="hint" id="uc" style="margin:0 0 6px">' + rows.length + ' personne' + (rows.length > 1 ? 's' : '') + (filtre ? ' trouvée' + (rows.length > 1 ? 's' : '') : '') + '</p><ul id="ul">' + liste + '</ul>' + htmlAnonymisationsATerminer(lecture ? orphelins : []);
+}
+/* anonymisations interrompues apres la suppression de la fiche : l'alias de l'annuaire reste a remplacer (bouton « Terminer », un par code) */
+function htmlAnonymisationsATerminer(codes) {
+  if (!codes || !codes.length) return '';
+  return '<p class="hint" id="uorh" style="margin:12px 0 4px;font-weight:600">Anonymisation à terminer</p><ul id="uor">' + codes.map(function (c) {
+    return '<li><div class="info"><b>' + esc(c) + '</b><small>La fiche est supprimée, l\'alias de l\'annuaire n\'est pas encore remplacé.</small></div><button type="button" class="btn danger" data-o="' + esc(c) + '">Terminer</button></li>';
+  }).join('') + '</ul>';
 }
 /* peutCompte : seul un Admin / SuperAdmin voit « Supprimer un compte de connexion » (le bouton n'existe pas pour les autres) */
 function htmlUtilisateursPiedListe(peutCompte) { return '<div class="row"><button type="button" class="btn cancel" id="ux">Fermer</button><button type="button" class="btn pri" id="uadd">Ajouter une personne</button></div>' + (peutCompte ? '<div class="row"><button type="button" class="btn danger" id="uacc">Supprimer un compte de connexion</button></div>' : ''); }
@@ -5259,7 +5341,7 @@ function htmlUtilisateurFiche(f) {
     (f.nouvelle ? '<p class="hint" id="udcah" style="margin:-4px 0 8px">Mis en minuscules, puis gardé tel quel et jamais réattribué. Seulement : lettres a-z, chiffres 0-9 et les signes @ , _ + - ; de 1 à ' + CODE_LONGUEUR_MAX + ' caractères.</p>' : '') +
     '<label class="fl"><span class="flab">Alias (nom affiché)</span><input id="uda" maxlength="40" autocomplete="off" value="' + esc(f.alias) + '"' + (f.droits.verrouillee ? ' disabled' : '') + '></label>' +
     '<p class="hint" id="udh" style="margin:10px 0 6px">' + esc(f.aide) + '</p><div id="udr" style="margin-bottom:10px">' + cases + '</div>' +
-    (f.nouvelle || !f.droits.peutRetirer ? '' : (f.etat === 'retire' ? '<button type="button" class="btn" id="udre">Réactiver</button>' : '<button type="button" class="btn danger" id="udrm">Retirer l\'accès (réversible)</button>') + (f.droits.peutAnonymiser ? ' <button type="button" class="btn danger" id="udan">Anonymiser définitivement</button>' : ''));
+    (f.nouvelle || !f.droits.peutRetirer ? '' : (f.etat === 'retire' ? '<button type="button" class="btn" id="udre">Réactiver</button> <button type="button" class="btn danger" id="udrt">Retrait à terminer</button>' :'<button type="button" class="btn danger" id="udrm">Retirer l\'accès (réversible)</button>') + (f.droits.peutAnonymiser ? ' <button type="button" class="btn danger" id="udan">Anonymiser définitivement</button>' : ''));
 }
 function htmlUtilisateurPied(nouvelle, verrouillee) { return '<div class="row"><button type="button" class="btn cancel" id="udx">Annuler</button>' + (verrouillee ? '' : '<button type="button" class="btn pri" id="udv">' + (nouvelle ? 'Ajouter' : 'Enregistrer') + '</button>') + '</div>'; }
 /* Ecrans « E-mails » (HTML pur) : regles par evenement, envois planifies, editeur d'une regle, journal des e-mails envoyes */
@@ -5454,6 +5536,11 @@ function htmlBloque(etat, email, motif) {
   return htmlMarque() + '<h2>Accès</h2><p>' + esc(texteBloque(etat, email, motif)) + '</p>' +
     (etat === 'nonverifie' ? '<div class="row"><button type="button" class="btn pri" id="lm">Recevoir mon lien</button><button type="button" class="btn" id="lv">J\'ai choisi mon mot de passe</button></div>' : '') +
     '<div class="row"><button type="button" class="btn" id="lo">Changer de compte</button></div>';
+}
+/* ecran d'avertissement : la copie locale de cet appareil appartient a une autre personne (conflit = { proprio, n }, voir socle\proprietaire.js) */
+function htmlConflitCopie(conflit) {
+  return htmlMarque() + '<h2>Copie locale d\'une autre personne</h2><p>' + esc(texteConflitCopie(conflit.proprio, conflit.n)) + '</p>' +
+    '<div class="row"><button type="button" class="btn danger" id="pe">Effacer et continuer</button><button type="button" class="btn" id="pa">Annuler (me déconnecter)</button></div>';
 }
 /* boutons de l'ecran « Verifie ta boite mail » : lm = le lien « choisir mon mot de passe » part a l'adresse puis la session est fermee ; lv = relit le jeton (si le lien a ete utilise sans se reconnecter) */
 function brancherBloque(etat, apres) {
@@ -6951,7 +7038,7 @@ function dessinerUtilisateurs() {
   var e = utEtat; if (!e || !$('udlg')) return;
   if (e.vue === 'liste') {
     $('uh').innerHTML = htmlUtilisateursEntete('liste');
-    $('uc_').innerHTML = htmlUtilisateursListe(listerUtilisateurs(Utilisateurs.donnees(), e.filtre), Utilisateurs.moiCode(), e.filtre, e.etat, e.lu);
+    $('uc_').innerHTML = htmlUtilisateursListe(listerUtilisateurs(Utilisateurs.donnees(), e.filtre), Utilisateurs.moiCode(), e.filtre, e.etat, e.lu, aRoleAdmin(Roles.liste() || []) ? Utilisateurs.orphelins() : []);
     $('uf').innerHTML = htmlUtilisateursPiedListe(aRoleAdmin(Roles.liste() || []));
     return;
   }
@@ -6980,7 +7067,7 @@ function ouvrirFichePersonne(code) {
     var ab = Utilisateurs.annuaireBrut()[code], connu = ab && typeof ab.alias === 'string' ? ab.alias : undefined; /* alias lu dans annuaire/<code> par l'ecran lui-meme, sans attendre la synchro */
     e.fiche = { code: code, cle: i.cle, nouvelle: false, email: emailDeCle(i.cle), nom: i.name, etat: i.etat, aliasActuel: connu, alias: connu !== undefined ? connu : '', roles: i.roles, droits: dr,
       aide: dr.verrouillee ? 'Réservé aux Admin : tu ne peux pas modifier cette personne.' : (dr.soi ? (dr.rolesGeles ? "C'est ton compte : tu ne peux ni te retirer ni modifier tes rôles." : "C'est ton compte : tu ne peux pas te retirer ni retirer ton propre rôle Admin.") : '') +
-        (i.etat === 'retire' ? (dr.soi ? ' ' : '') + 'Accès retiré : cette personne ne peut plus se connecter. Tu peux la réactiver.' : '') };
+        (i.etat === 'retire' ? (dr.soi ? ' ' : '') + 'Accès retiré : cette personne ne peut plus se connecter. Tu peux la réactiver. Si un retrait a été interrompu, appuie sur « Retrait à terminer » (refait l\'annuaire et le pointeur d\'accès, sans rien réactiver).' : '') };
   } else {
     e.fiche = { code: proposerCode(Utilisateurs.donnees(), Utilisateurs.annuaireBrut()), cle: '', nouvelle: true, email: '', nom: '', etat: 'actif', aliasActuel: undefined, alias: '', aliasModifie: false, roles: ['lecteur'], droits: droitsFiche('', [], moi, mesRoles), aide: '' };
   }
@@ -7047,6 +7134,18 @@ function retirerPersonne() {
     Utilisateurs.retirer(f.code).then(function (r) { if (r.ok) { toast(r.message); e.etat = '✓ ' + r.message + ' — ' + f.email; e.vue = 'liste'; dessinerUtilisateurs(); } else erreurUtilisateurs(r.message); });
   });
 }
+/* RETRAIT A TERMINER : la fiche est deja retiree (acces coupe) ; refait seulement l'annuaire et le pointeur d'acces (rejouable autant de fois que necessaire) */
+function terminerRetrait() {
+  var e = utEtat, f = e.fiche, msg = controlerRetrait(Utilisateurs.donnees(), f.code, Utilisateurs.moiCode(), Roles.liste() || []);
+  if (msg) { toast(msg); return; }
+  effacerErreurUtilisateurs();
+  Utilisateurs.retirer(f.code).then(function (r) { if (r.ok) { toast(r.message); e.etat = '✓ ' + r.message + ' — ' + f.email; e.vue = 'liste'; dessinerUtilisateurs(); } else erreurUtilisateurs(r.message); });
+}
+/* ANONYMISATION A TERMINER : la fiche est deja supprimee ; il ne reste que l'alias de l'annuaire a remplacer */
+function terminerAnonymisation(code) {
+  var e = utEtat; effacerErreurUtilisateurs();
+  Utilisateurs.anonymiser(code).then(function (r) { if (r.ok) { toast(r.message); e.etat = '✓ ' + r.message; } else erreurUtilisateurs(r.message); dessinerUtilisateurs(); });
+}
 /* REACTIVER une personne retiree : meme code, meme adresse, nom / alias / roles de la fiche */
 function reactiverPersonne() {
   var e = utEtat, f = e.fiche;
@@ -7080,12 +7179,14 @@ function clicUtilisateurs(ev) {
   var e = utEtat; if (!e) return;
   var li = ev.target.closest('li[data-u]'); if (li && e.vue === 'liste') { ouvrirFichePersonne(li.getAttribute('data-u')); return; }
   var b = ev.target.closest('button'); if (!b) return;
+  if (b.getAttribute('data-o')) { terminerAnonymisation(b.getAttribute('data-o')); return; }
   if (b.id === 'ux') { $('udlg').close(); return; }
   if (b.id === 'uadd') { ouvrirFichePersonne(''); return; }
   if (b.id === 'udx') { e.vue = 'liste'; dessinerUtilisateurs(); return; }
   if (b.id === 'udv') { enregistrerPersonne(); return; }
   if (b.id === 'udrm') retirerPersonne();
   if (b.id === 'udre') reactiverPersonne();
+  if (b.id === 'udrt') terminerRetrait();
   if (b.id === 'udan') anonymiserPersonne();
   if (b.id === 'uacc') ouvrirSuppressionCompte();
   if (b.id === 'ucx') { e.vue = 'liste'; dessinerUtilisateurs(); return; }
@@ -7921,7 +8022,7 @@ function brancherChampsDate() {
   document.addEventListener('change', function (ev) { if (ev.target.getAttribute && ev.target.hasAttribute('data-calsel')) { ev.stopPropagation(); choisirDateCalendrier(ev.target); } }, true);
 }
 /* Coquille de l'application : choisit l'ecran selon l'etat d'acces (etatAcces), tient la synchro periodique et la mise en veille */
-var VERSION = '1.0.3';
+var VERSION = '1.0.4';
 
 /* accueil : scanner, blocs « A traiter » / valeur / taches (selon le role), liste des pieces, barre du bas */
 function htmlAccueil(auth, roles) {
@@ -7980,6 +8081,17 @@ function majCompte() {
 function afficherAppli() {
   var racine = $('app'), auth = Session.courante(), roles = Roles.liste(), etat = etatAcces(auth, roles);
   Camera.arreter(); /* l'ecran est redessine : la camera doit etre rearmee */
+  /* copie locale d'une autre personne : l'avertissement passe AVANT tout chargement ou envoi */
+  if (etat === 'ok' && !Proprietaire.verifie()) { Proprietaire.controler().then(afficherAppli); return; }
+  if (etat === 'ok' && Proprietaire.conflit()) {
+    racine.className = 'verrou'; racine.innerHTML = '<form id="lf" class="carte"></form>'; $('lf').innerHTML = htmlConflitCopie(Proprietaire.conflit());
+    $('pa').onclick = function () { Proprietaire.annuler(); afficherAppli(); };
+    $('pe').onclick = function () {
+      var n = Proprietaire.conflit().n, go = function () { Proprietaire.effacer().then(afficherAppli, function () { toast('Effacement impossible : réessaie'); }); };
+      if (n) confirmer(n + ' modification(s) non envoyée(s) seront perdues. Effacer la copie de cet appareil ?', 'Effacer', go); else go();
+    };
+    return;
+  }
   racine.className = etat === 'ok' ? '' : 'verrou';
   if (etat === 'ok') {
     racine.innerHTML = '<header></header><main>' + htmlAccueil(auth, roles) + '</main>';
