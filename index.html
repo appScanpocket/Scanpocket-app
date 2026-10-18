@@ -283,6 +283,97 @@ header #sync{flex:none}
 #home .alerte .hl{cursor:default}#home .alerte .btn{flex:0 0 auto;min-height:38px;padding:2px 14px}
 #adm_sauvegardes{position:relative}
 .pastille{position:absolute;top:8px;right:8px;width:14px;height:14px;border-radius:50%;background:#D64545;border:2px solid var(--card)}
+/* Ecran « Bon de livraison » (Labo) : tout est prefixe bl- ; telephone d'abord (cartes), tableau a partir de 760 px. Les details sont masques par display:none (jamais par des colonnes repliees). */
+#bldlg[open]{width:min(100vw,1180px)}
+.bl-cache{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.bl-conseil{margin:0 0 8px}
+.bl-actions{flex-wrap:wrap;margin-top:4px}.bl-actions .btn{flex:1 1 200px}
+.bl-etat{font-weight:700;margin:10px 0;min-height:1.4em}.bl-etat.bl-err{color:var(--bad)}
+.bl-rouge{color:var(--bad);font-weight:700}
+.bl-version{margin:16px 0 0;text-align:center;font-size:12px}
+.bl-vig{width:150px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:4px;margin:6px 0;cursor:zoom-in}.bl-vig[hidden]{display:none}
+.bl-vig .hint{margin:0 0 4px;font-size:12px}.bl-vig canvas{display:block;width:100%;height:auto;max-height:220px;border:1px solid var(--line);background:#fff}
+.bl-sw{display:flex;align-items:center;gap:10px;position:relative;min-height:44px;margin:6px 0;font-weight:600;cursor:pointer}
+.bl-sw input{position:absolute;left:0;top:0;width:100%;height:100%;min-height:44px;margin:0;opacity:0;cursor:pointer}
+.bl-sw-i{flex:none;position:relative;width:44px;height:26px;border-radius:13px;background:var(--line)}
+.bl-sw-i::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.bl-sw input:checked + .bl-sw-i{background:#2a9d2a}.bl-sw input:checked + .bl-sw-i::after{left:21px}
+.bl-sw input:focus-visible + .bl-sw-i{outline:3px solid var(--acc);outline-offset:2px}
+.bl-page{margin:0 0 22px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+.bl-info{margin:8px 0 4px;font-size:13px}.bl-nb{margin:8px 0 6px}
+.bl-cadre{flex:1 1 0;min-width:0;border:2px solid #36a;border-radius:10px;background:color-mix(in srgb,#36a 7%,var(--card));padding:8px 10px;margin:6px 0}
+.bl-ident{display:flex;gap:12px;align-items:flex-start}
+.bl-idr{display:grid;grid-template-columns:42% minmax(0,1fr);gap:8px;align-items:center;min-height:36px;font-size:15px}
+.bl-idv{overflow-wrap:anywhere}
+.bl-gest input{min-height:36px;height:36px;padding:2px 8px;font-size:15px;margin:0}
+.bl-idnote{display:block;margin:4px 0 0;font-size:12px}
+/* pastilles de couleur (voyants) */
+.bl-v{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:middle;border:1px solid #333}
+.bl-vert{background:#2a9d2a}.bl-orange{background:#f0a020}.bl-v.bl-rouge{background:#d22;color:inherit;font-weight:400}.bl-gris{background:#bbb}
+.bl-alerte{cursor:help;margin-right:6px}
+/* grille des articles : une ligne d'en-tete, puis par article DEUX lignes (lu / modifiable) dans un seul cadre */
+.bl-grid{--blc:150px minmax(0,1.4fr) 84px minmax(0,1fr) 96px}
+.bl-avec-det .bl-grid{--blc:150px minmax(0,1.4fr) 84px minmax(0,1fr) 72px 96px}
+.bl-avec-det .bl-grid.bl-prix{--blc:150px minmax(0,1.4fr) 84px 68px 68px 84px 124px minmax(0,1fr) 72px 96px}
+.bl-th,.bl-lu,.bl-mod{display:grid;grid-template-columns:var(--blc);column-gap:8px;align-items:center}
+.bl-th{padding:8px 10px;font:700 13px/18px Barlow,system-ui,sans-serif;color:var(--mute);border-bottom:2px solid var(--line)}
+.bl-th span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bl-art{border:1px solid var(--line);border-radius:8px;margin:6px 0;overflow:hidden;--blbg:var(--card)}
+.bl-lu{padding:6px 10px 2px;background:var(--blbg);font-size:15px;line-height:20px}
+.bl-mod{padding:2px 10px 6px;background:var(--blbg)}
+.bl-c{min-width:0;overflow-wrap:anywhere}.bl-page .n{text-align:right}
+.bl-c small{color:var(--mute)}
+.bl-det{display:none}.bl-avec-det .bl-det{display:block}
+.bl-artz{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
+.bl-m-ref{grid-column:1}.bl-m-rech{grid-column:2}.bl-m-qte{grid-column:3}.bl-m-ic{grid-column:4 / -1;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px}
+.bl-c-ign{grid-column:span 2;color:var(--mute)}.bl-avec-det .bl-c-ign{grid-column:span 3}
+.bl-art input{width:100%;min-height:36px;height:36px;padding:2px 8px;font-size:15px;margin:0}
+.bl-qte{text-align:right}
+.bl-barre{display:flex;gap:4px}
+.bl-ic{width:36px;height:36px;min-width:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--line);border-radius:8px;color:var(--ink);cursor:pointer}
+.bl-ic svg{width:20px;height:20px}.bl-ic:disabled{opacity:.4;cursor:default}
+.bl-ic[data-act="ok"].bl-actif{background:#2a9d2a;border-color:#176017;color:#fff}.bl-ic[data-act="no"].bl-actif{background:#d22;border-color:#900;color:#fff}
+.bl-badge{background:#36a;color:#fff;border-radius:8px;padding:0 8px;font-size:12px}.bl-badge[hidden]{display:none}
+.bl-res{display:block}.bl-res button{display:block;width:100%;text-align:left;min-height:40px;margin:2px 0;padding:4px 8px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;font:14px Barlow,system-ui,sans-serif;cursor:pointer}
+/* etat de la proposition (couleur seule) puis decision de la personne (couleur seule, plus forte) */
+.bl-reconnu{--blbg:color-mix(in srgb,#2a9d2a 14%,var(--card))}.bl-averifier{--blbg:color-mix(in srgb,#f0a020 20%,var(--card))}.bl-nonreconnu{--blbg:color-mix(in srgb,#d22 13%,var(--card))}
+.bl-ignoree{--blbg:color-mix(in srgb,var(--mute) 12%,var(--card));font-style:italic;color:var(--mute)}
+.bl-art.bl-ok{--blbg:color-mix(in srgb,#2a9d2a 42%,var(--card))}.bl-art.bl-ok > div:first-child{box-shadow:inset 6px 0 #1a7a1a}
+.bl-art.bl-md{--blbg:color-mix(in srgb,#f0a020 50%,var(--card))}.bl-art.bl-md > div:first-child{box-shadow:inset 6px 0 #d98200}
+.bl-art.bl-no{--blbg:color-mix(in srgb,var(--mute) 25%,var(--card))}.bl-art.bl-no > div:first-child{box-shadow:inset 6px 0 #777}
+.bl-art.bl-no .bl-lu .bl-c{color:var(--mute);text-decoration:line-through}.bl-art.bl-no .bl-lu .bl-c .bl-alerte{text-decoration:none}
+.bl-resume{font-weight:700;margin:8px 0}
+.bl-alias{margin:6px 0}.bl-alias summary{cursor:pointer;min-height:36px;display:flex;align-items:center}.bl-alias ul{margin:4px 0;padding-left:20px}
+.bl-valider{margin-top:6px;flex-wrap:wrap}.bl-valider .btn{flex:1 1 160px}
+.bl-final{margin:8px 0}.bl-final[hidden]{display:none}.bl-final ul{margin:4px 0;padding-left:20px}.bl-final .btn{margin:4px 8px 0 0}
+.bl-verrou{opacity:.75}
+.bl-ctl{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}.bl-ctl th,.bl-ctl td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}.bl-ctl th{background:color-mix(in srgb,var(--line) 40%,var(--card))}.bl-ctl .n{text-align:right}
+.bl-diag{margin:10px 0;border:1px solid var(--line);border-radius:8px;padding:0 10px 8px}.bl-diag summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+.bl-diag pre{max-height:320px;overflow:auto;background:color-mix(in srgb,var(--line) 30%,var(--card));padding:8px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}.bl-diag .btn{margin-right:10px}
+.bl-texte pre{max-height:240px;overflow:auto;background:color-mix(in srgb,var(--line) 30%,var(--card));padding:8px;font-size:12px;white-space:pre-wrap}
+.bl-texte summary{cursor:pointer;min-height:36px;display:flex;align-items:center}
+/* agrandissement du document lu */
+#blagr[open]{display:flex;flex-direction:column;padding:0;margin:0 auto;width:min(100vw,1200px);height:100vh;height:100dvh;max-height:none;border-radius:0;background:#222}
+.bl-agr-h{flex:none;padding:8px;text-align:right}.bl-agr-c{flex:1 1 auto;overflow:auto;padding:0 8px 16px}
+.bl-agr-c canvas{display:block;width:min(100%,1100px);height:auto;margin:0 auto 8px;background:#fff}
+/* disposition en CARTES (telephone, ou fenetre trop etroite pour le tableau) : la classe bl-cartes est posee sur #blsortie par l'ecran selon sa largeur (voir majMiseEnPageBl) */
+.bl-cartes .bl-th{display:none}
+.bl-cartes .bl-lu,.bl-cartes .bl-mod{display:flex;flex-direction:column;align-items:stretch;padding:0}
+.bl-cartes .bl-c{padding:5px 10px;border-bottom:1px solid var(--line)}
+.bl-cartes .bl-c[data-l]::before{content:attr(data-l) " : ";font-size:12px;font-weight:700;color:var(--mute)}
+.bl-cartes .bl-m-ic{flex-direction:row}
+.bl-cartes .bl-mod .bl-c[data-l]::before{display:block}.bl-cartes .bl-mod .bl-m-ic[data-l]::before{display:none}
+.bl-cartes .n,.bl-cartes .bl-m-qte,.bl-cartes .bl-qte{text-align:left}.bl-cartes .bl-ctl .n{text-align:right}
+.bl-cartes .bl-artz{display:block;overflow:visible}
+.bl-cartes .bl-qte{width:140px}
+.bl-cartes .bl-c-ign{grid-column:auto}
+@media (max-width:759px){
+  .bl-ident{display:block}
+  .bl-art input,.bl-gest input{min-height:44px;height:44px;font-size:16px}
+  .bl-ic{width:44px;height:44px;min-width:44px}.bl-ic svg{width:24px;height:24px}
+  .bl-ctl{font-size:13px}.bl-ctl th,.bl-ctl td{padding:4px 5px}
+  .bl-res button{min-height:44px}
+}
 </style>
 <script src="config.js"></script>
 <script>/* icone de la page et de l'ecran d'accueil (iOS) propre a l'environnement : DEV et TEST ont leur bandeau colore, la PRODUCTION garde l'icone normale */
@@ -2481,14 +2572,109 @@ var ADM_CARTES = [
   { id: 'adm_effacer', g: 'Zone réservée', t: 'Tout effacer', d: 'Envoie tous les articles à la corbeille, sur tous les téléphones. Une sauvegarde est faite avant.', droit: 'danger', zone: true },
   { id: 'adm_purge', g: 'Zone réservée', t: 'Supprimer tous les articles et tout le journal (serveur)', c: 'Suppression complète (serveur)', d: 'Supprime définitivement, sur le serveur et sur tous les appareils, les articles, le journal, les magasins et les photos de cet environnement. Réservé aux SuperAdmin.', droit: 'purge', zone: true },
   { id: 'adm_veille', g: 'Cet appareil', t: 'Mise en veille', d: 'Quand couper la caméra et la synchro de ce téléphone.', droit: '' },
-  { id: 'adm_partage', g: 'Cet appareil', t: 'Partager un texte (essai)', c: 'Partager (essai)', d: 'Envoyer un code-barres ou un commentaire à une autre application.', droit: '' },
+  { id: 'adm_labo', g: 'Cet appareil', t: 'Labo (essais)', c: 'Labo', d: 'Les fonctions en essai : partage de texte, bon de livraison.', droit: '' },
   { id: 'adm_etat', g: 'Cet appareil', t: 'État du système', d: 'Version, environnement, compte, rôles, dernière synchro.', droit: '' }
+];
+/* cartes de la page « Labo » (essais), meme forme que ADM_CARTES, ouvertes depuis la carte adm_labo */
+var LABO_CARTES = [
+  { id: 'adm_partage', g: 'Essais', t: 'Partager un texte (essai)', c: 'Partager (essai)', d: 'Envoyer un code-barres ou un commentaire à une autre application.', droit: '' },
+  { id: 'adm_bon', g: 'Essais', t: 'Bon de livraison', d: 'Lire un bon de livraison à partir d\'une photo ou d\'un fichier (essai : rien n\'est enregistré).', droit: '' }
 ];
 function entreesAdministration(roles) {
   return {
     aide: peut('admin', roles) ? 'Réservé aux administrateurs et aux responsables de la sécurité pour la gestion ; les outils sur les articles dépendent de ton rôle.' : 'Outils sur les articles et les données, selon ton rôle.',
     cartes: ADM_CARTES.filter(function (e) { return !e.droit || peut(e.droit, roles); })
   };
+}
+/* Bon de livraison (Labo, essai) : calculs purs (aucun acces a l'ecran, au stockage ni au reseau).
+   Le moteur de lecture lui-meme est dans EnvDev\bl\ (charge a la demande) ; ici : le stock vu par le moteur, la taille de la photo, les decisions ligne par ligne et les controles de quantite. */
+var BL_COPIE = 'copie du pilote 0.16';
+/* texte d'un nombre pour les montants : 2 decimales, virgule ; « - » si absent */
+function blFmt(x) { return x == null || !isFinite(x) ? '-' : Number(x).toFixed(2).replace('.', ','); }
+/* le stock de l'application (articles en memoire, LECTURE SEULE) dans la forme attendue par le moteur : { ref, ean, eans, nom, emp, fo, code }.
+   ref = reference de l'article (sinon son code) ; ean/eans = tous les codes-barres numeriques de 8 a 14 chiffres (code actuel, code, anciens codes) */
+function blStockDepuisArticles(pieces) {
+  var sortie = [];
+  (pieces || []).forEach(function (p) {
+    if (!p || p.del || !p.name) return;
+    var eans = [curOf(p), p.code].concat(p.alts || []).map(function (c) { return String(c == null ? '' : c).replace(/[\s.-]/g, ''); })
+      .filter(function (c, i, a) { return /^\d{8,14}$/.test(c) && a.indexOf(c) === i; });
+    sortie.push({ ref: String(p.ref || p.code), ean: eans[0] || '', eans: eans, nom: String(p.name), emp: p.loc || '', fo: p.fo || '', code: p.code });
+  });
+  return sortie;
+}
+/* taille de l'image envoyee a la lecture : largeur ramenee a `cible` (reduite si plus grande ; agrandie jusqu'a x4 si plus petite, comme le pilote) ; hauteur plafonnee a 8000 px */
+function blPlanRedimension(w, h, cible) {
+  if (!(w > 0) || !(h > 0)) return { e: 1, w2: 0, h2: 0, reduit: false, agrandi: false };
+  var e = Math.min(4, cible / w);
+  if (h * e > 8000) e = 8000 / h;
+  return { e: e, w2: Math.max(1, Math.round(w * e)), h2: Math.max(1, Math.round(h * e)), reduit: e < 1, agrandi: e > 1 };
+}
+/* lignes de decision d'une page lue (t.rows du moteur) : une entree par ligne, etat « en attente » */
+function blDecisions(rows) {
+  return rows.map(function (r) {
+    var pr = r.proposition, it = pr && pr.item || null, artTxt = pr ? (pr.item ? pr.item.ref + ' ' + pr.item.nom : '(aucune proposition)' + (pr.piste ? ' piste : ' + pr.piste.ref + ' ' + pr.piste.nom : '')) : '';
+    return { ign: r.statut === 'ignoree', item: it, item0: it, qte: r.qty, qte0: r.qty, ref: r.ref, ref0: r.ref, st: 'attente', modif: false, pick: false, retenu: false, artTxt: artTxt, artTitre: pr ? artTxt + ' - ' + pr.raison : '' };
+  });
+}
+/* etat d'une ligne : ecartee > modifiee > confirmee > en attente */
+function blEtatLigne(d) { return d.st === 'ecartee' ? 'ecartee' : d.modif ? 'modifiee' : d.st === 'confirmee' ? 'confirmee' : 'en attente'; }
+function blResume(ds) {
+  var n = { confirmee: 0, ecartee: 0, modifiee: 0, 'en attente': 0 };
+  ds.forEach(function (x) { if (!x.ign) n[blEtatLigne(x)]++; });
+  return { n: n, texte: n.confirmee + ' confirmées, ' + n.ecartee + ' écartées, ' + n.modifiee + ' modifiées, ' + n['en attente'] + ' en attente' };
+}
+/* nombre de lignes et quantites RETENUES : le nombre de lignes de detail ne depend pas des decisions (seules les lignes ignorees sont exclues) ;
+   les quantites excluent les lignes ecartees et utilisent la quantite de la ligne de modification. lu = valeur indiquee sur le document (null si absente) */
+function blControleQuantites(ds, meta) {
+  var ret = ds.filter(function (x) { return !x.ign && x.st !== 'ecartee'; });
+  var sq = Math.round(ret.reduce(function (s, x) { return s + (x.qte || 0); }, 0) * 1000) / 1000, qok = ret.every(function (x) { return x.qte != null; });
+  var nb = ds.filter(function (x) { return !x.ign; }).length;
+  var ligne = function (k, label, som, lu, ok) {
+    var g = lu == null;
+    return { k: k, label: label, som: som, lu: g ? '-' : lu, ecart: g ? '-' : Math.round((som - lu) * 1000) / 1000, voyant: g ? 'gris' : ok ? 'vert' : 'rouge', texte: g ? 'non indiqué sur le document' : ok ? 'vert' : 'rouge' };
+  };
+  return [ligne('nb', 'Nombre de lignes', nb, meta.nbLu, nb === meta.nbLu), ligne('qte', 'Quantités', sq, meta.pieces, sq === meta.pieces && qok)];
+}
+/* ce qui est a recevoir : lignes confirmees ou modifiees (libelle = reference et article, qte) et nombre de lignes encore sans decision */
+function blLignesReception(ds) {
+  var fin = ds.filter(function (x) { return !x.ign && (blEtatLigne(x) === 'confirmee' || blEtatLigne(x) === 'modifiee'); });
+  return {
+    attente: ds.filter(function (x) { return !x.ign && blEtatLigne(x) === 'en attente'; }).length,
+    lignes: fin.map(function (x) { var rf = x.ref || (x.item && x.item.ref) || '', nm = x.item ? x.item.nom : ''; return { libelle: (rf || nm) ? (rf + ' ' + nm).trim() : '', qte: x.qte }; })
+  };
+}
+/* voyant unique « chiffres coherents / a revoir » pour qui n'a pas le droit de voir les montants (global = voyant du controle arithmetique du moteur) */
+function blVoyantChiffres(global) {
+  return global === 'vert' ? { voyant: 'vert', texte: 'cohérents' } : global === 'gris' ? { voyant: 'gris', texte: 'non contrôlable' } : { voyant: global === 'orange' ? 'orange' : 'rouge', texte: 'à revoir' };
+}
+/* infobulle de l'alerte d'une ligne (controle de ligne orange ou rouge) ; sans le droit « prix » : jamais de montant */
+function blAlerteLigne(c, prixVisible) {
+  if (!c || (c.etat !== 'rouge' && c.etat !== 'orange')) return null;
+  if (!prixVisible) return { etat: c.etat, titre: c.etat === 'rouge' ? 'Chiffres de la ligne à revoir' : 'Chiffres de la ligne à vérifier (arrondi)' };
+  return { etat: c.etat, titre: c.etat === 'rouge' ? (c.attendu != null ? 'attendu ' + blFmt(c.attendu) + ', écart ' + blFmt(c.ecart) : (c.note || 'contrôle de ligne en erreur')) : 'arrondi (écart ' + blFmt(c.ecart) + ')' };
+}
+/* message du garde-fou de la lecture (verdict du moteur) */
+function blMessageVerdict(v) {
+  return v === 'tableau-introuvable' ? 'Je n\'ai pas retrouvé le tableau du bon. Essayez de photographier à plat, tout le tableau dans le cadre, sans reflet, à 20-30 cm, ou ouvrez le diagnostic.'
+    : v === 'trop-incertaine' ? 'Lecture trop incertaine : les quantités sont illisibles sur la moitié des lignes. Reprenez la photo (à plat, tout le tableau dans le cadre, sans reflet, à 20-30 cm) ou ouvrez le diagnostic.' : '';
+}
+/* sans le droit « prix » : tout nombre a decimales (montant, prix, total) est remplace avant d'etre affiche ou copie */
+function blMasquerMontants(s) { return String(s == null ? '' : s).replace(/\d{1,3}(?:[ .]\d{3})*[,.]\d{1,2}(?!\d)|\d+[,.]\d{1,2}(?!\d)/g, '[montant]'); }
+/* texte brut du diagnostic de lecture d'une page (affiche dans l'ecran et copie par « Copier le diagnostic ») ; pg = { p (page lue), t (analyse du moteur), dim } */
+function blTexteDiagnostic(pg, prix, moteur) {
+  var t = pg.t, p = pg.p, d = t.diag || { candidats: [] }, m = function (s) { return prix ? String(s == null ? '' : s) : blMasquerMontants(s); };
+  var l = ['Diagnostic de lecture - moteur BL ' + moteur, 'Page ' + p.n + ' : ' + p.mode];
+  l.push(p.dim ? 'Image : ' + p.dim.src + ' px, envoyee a la lecture en ' + p.dim.lu + ' px (echelle x' + p.dim.e.toFixed(2) + ')' : 'Document PDF : texte numerique ou rendu, pas de photo');
+  l.push('Boites de texte lues : ' + (t.nbBoites != null ? t.nbBoites : p.items.length) + ' ; lignes de texte : ' + t.nbLignes + ' ; inclinaison estimee : ' + (t.angle || 0).toFixed(2) + ' deg');
+  l.push('Temps : lecture ' + p.secondes.toFixed(2) + ' s' + (p.prepa != null ? ' + preparation de l\'image ' + p.prepa.toFixed(2) + ' s' : ''));
+  l.push('Verdict : ' + (t.verdict || 'lecture exploitable') + ' ; en-tete : ' + (t.entete ? '"' + m(t.entete) + '" (' + (d.mode || '?') + ')' : 'NON TROUVE'));
+  l.push('Meilleures lignes candidates pour l\'en-tete (score ; types reconnus ; lignes de corps qui suivent) :');
+  if (!d.candidats.length) l.push('  aucune ligne ne contient un mot d\'en-tete (reference, designation, quantite, prix...)');
+  d.candidats.forEach(function (c, i) { l.push('  ' + (i + 1) + '. score ' + c.score.toFixed(1) + ' ; ' + c.types.join(', ') + ' ; corps ' + c.corps + ' : ' + m(c.texte)); });
+  l.push('Lignes de texte lues (' + t.texteLignes.length + ') :');
+  t.texteLignes.forEach(function (x, i) { l.push('  ' + (i + 1) + ': ' + m(x)); });
+  return l.join('\n');
 }
 /* Rapports : la liste des rapports et qui peut les voir (calculs purs, aucun acces a l'ecran).
    besoin = droit demande (voir PERMS) : hist = historique des mouvements, prix = prix d'achat. */
@@ -5151,7 +5337,7 @@ var ICONES_ADMIN = {
   adm_utilisateurs: ICONES_RAPPORT.activite, adm_magasins: 'M3 9l1-5h16l1 5M4 9v11h16V9M9 20v-6h6v6', adm_inventaire: 'M9 4h6v3H9zM6 5h3M15 5h3v16H6V5M9 14l2 2 4-4', adm_journal: ICONES_RAPPORT.motifs, adm_mails: 'M3 6h18v12H3zM3 7l9 7 9-7',
   adm_import: 'M12 4v12M7 11l5 5 5-5M5 20h14', adm_export: 'M12 16V4M7 9l5-5 5 5M5 20h14', adm_etiquettes: 'M4 6v12M7 6v12M10 6v12M14 6v12M17 6v12M20 6v12',
   adm_externe: ICONES_RAPPORT.transferts, adm_sauvegardes: 'M5 4h12l2 2v14H5zM8 4v5h7V4M8 20v-6h8v6', adm_photos: 'M3 7h4l2-3h6l2 3h4v13H3zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
-  adm_veille: 'M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z', adm_partage: 'M4 12v7h16v-7M12 3v12M8 7l4-4 4 4', adm_etat: 'M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z', adm_effacer: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13', adm_purge: 'M12 4l9 16H3zM12 10v4M12 17h.01'
+  adm_veille: 'M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z', adm_partage: 'M4 12v7h16v-7M12 3v12M8 7l4-4 4 4', adm_labo: 'M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3M7.5 14h9', adm_bon: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',adm_etat: 'M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z', adm_effacer: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13', adm_purge: 'M12 4l9 16H3zM12 10v4M12 17h.01'
 };
 function htmlAdministrationEntete(titre, sous) { return '<h2>' + esc(titre) + '</h2><p class="sub">' + esc(sous) + '</p>'; }
 function htmlAdministrationMenu(cartes) { return htmlMenuCartes(cartes, 'data-adm', ICONES_ADMIN, '<p class="hint">Ton profil n\'a accès à aucun outil.</p>', true); }
@@ -5161,6 +5347,8 @@ function htmlVeilleReglage(veille, intervalle) {
     '<p class="hint" style="margin:6px 0 10px">0 = jamais. L\'application ne se ferme pas et ne perd rien : les mouvements restent enregistrés sur l\'appareil.</p>' +
     '<p class="hint" style="margin:6px 0 10px">Tant que l\'appareil n\'est pas en veille, l\'application se synchronise automatiquement <b>toutes les ' + intervalle + ' secondes</b> (et à chaque retour sur l\'écran).</p>';
 }
+/* page « Labo » : les cartes d'essai (LABO_CARTES), meme grille que le menu */
+function htmlLabo() { return htmlMenuCartes(LABO_CARTES, 'data-adm', ICONES_ADMIN, '', true); }
 function htmlEtatSysteme(texte) { return '<pre class="etat">' + esc(texte) + '</pre>'; }
 function htmlAdministrationPied() { return '<div class="row"><button type="button" class="btn cancel" id="admx">Fermer</button></div>'; }
 /* ecran « Partager un texte (essai) » : un texte libre, envoye au menu de partage du telephone ou copie */
@@ -5168,6 +5356,94 @@ function htmlPartageTexte() {
   return '<label class="fl"><span class="flab">Texte à envoyer</span><textarea id="shT" rows="5" placeholder="Un code-barres, une liste CODE.QUANTITÉ, un commentaire…"></textarea></label>' +
     '<div class="row" style="margin-top:12px"><button type="button" class="btn pri" id="shB" style="flex:1">Partager</button><button type="button" class="btn" id="shC" style="flex:1">Copier</button></div>' +
     '<p class="hint" id="shS" style="margin:8px 0 0"></p>';
+}
+/* Ecran « Bon de livraison » (Labo, essai) en HTML pur : en-tete, corps (photo, fichier, etat, vignette, interrupteur des details, resultat), pied, une page lue (identification, articles a deux lignes, resume, controle).
+   Les noms de classe commencent par bl-. Les modeles (m) sont calcules par ecrans\bon_livraison.js ; aucun montant n'est ecrit quand m.prix est faux. */
+function htmlBlEntete() { return '<h2>Bon de livraison</h2><p class="sub">Labo · lecture d\'un bon, rien n\'est enregistré ni envoyé</p>'; }
+function htmlBlCorps(prix) {
+  return '<p class="hint bl-conseil"><b>Avant la photo :</b> bon posé à plat, bonne lumière (sans reflet), tout le tableau dans le cadre.</p>' +
+    '<div class="row bl-actions"><button type="button" class="btn pri" id="blphoto">Photographier le BL</button><button type="button" class="btn" id="blfichier">Choisir un fichier</button></div>' +
+    '<input type="file" id="blinp1" class="bl-cache" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true"><input type="file" id="blinp2" class="bl-cache" accept="image/*,.pdf,application/pdf" tabindex="-1" aria-hidden="true">' +
+    '<p class="bl-etat" id="bletat" role="status" aria-live="polite">Chargement du moteur de lecture…</p>' +
+    '<div class="bl-vig" id="blvig" hidden><div class="hint">Document lu · toucher pour agrandir</div><div id="blvigc"></div></div>' +
+    '<label class="bl-sw"><input type="checkbox" id="bldet"><span class="bl-sw-i" aria-hidden="true"></span><span>Afficher les détails (' + (prix ? 'PU, remise, montant, confiance' : 'confiance') + ')</span></label>' +
+    '<div id="blsortie" class="bl-sortie"></div><p class="hint bl-version" id="blver"></p>';
+}
+function htmlBlPied() { return '<div class="row"><button type="button" class="btn cancel" id="blx">Fermer</button></div>'; }
+/* agrandissement du document lu (fenetre a part, au-dessus de l'ecran) */
+function htmlBlAgrandi() { return '<div class="bl-agr-h"><button type="button" class="btn" id="blagrx">Fermer</button></div><div id="blagrc" class="bl-agr-c"></div>'; }
+
+var BL_ICONES = {
+  ok: ['D\'accord', '<path d="M5 12.5l4.5 4.5L19 7.5"/>'], no: ['Pas d\'accord', '<path d="M6 6l12 12M18 6L6 18"/>'], rechercher: ['Rechercher', '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/>'],
+  annuler: ['Annuler', '<path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4.5h4.5"/>'],
+  confiance: ['Confiance : reconnaître cette référence à l\'avenir', '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M8.8 12l2.4 2.4 4-4.4"/>']
+};
+function htmlBlIcone(act) {
+  var i = BL_ICONES[act];
+  return '<button type="button" class="bl-ic" data-act="' + act + '" title="' + esc(i[0]) + '" aria-label="' + esc(i[0]) + '"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + i[1] + '</svg></button>';
+}
+var BL_BARRE = ['ok', 'no', 'rechercher', 'annuler', 'confiance'];
+function htmlBlValeur(v) { return v != null && v !== '' ? esc(v) : '<span class="hint">non lu</span>'; }
+function htmlBlIdentification(m) {
+  var champs = m.ident;
+  return '<div class="bl-ident"><div class="bl-cadre"><b>Détecté</b>' +
+    champs.map(function (c) { return '<div class="bl-idr"><span>' + esc(c.l) + '</span><span class="bl-idv">' + htmlBlValeur(c.v) + '</span></div>'; }).join('') +
+    '<span class="hint bl-idnote">Texte lu tel quel (lecture seule)</span></div>' +
+    '<div class="bl-cadre bl-gest"><b>Gestionnaire</b>' +
+    champs.map(function (c) { return '<div class="bl-idr"><span>' + esc(c.l) + '</span><input type="text" data-champ="' + esc(c.k) + '" value="' + esc(c.v == null ? '' : c.v) + '" aria-label="' + esc(c.l) + '" autocomplete="off"></div>'; }).join('') +
+    '<span class="hint bl-idnote">Pré-rempli, modifiable (rien enregistré)</span></div></div>';
+}
+/* tableau de controle, toujours visible : quantites et nombre de lignes (c.quant), puis soit les montants (droit prix), soit un voyant sans montant */
+function htmlBlControle(c) {
+  var voy = function (v, t) { return '<span class="bl-v bl-' + v + '"></span>' + esc(t); };
+  var ligne = function (label, som, lu, ecart, v, t) { return '<tr><td>' + esc(label) + '</td><td class="n">' + esc(som) + '</td><td class="n">' + esc(lu) + '</td><td class="n">' + esc(ecart) + '</td><td>' + voy(v, t) + '</td></tr>'; };
+  var h = '<table class="bl-ctl"><thead><tr><th></th><th class="n">Somme calculée des lignes</th><th class="n">Total lu</th><th class="n">Écart</th><th>Voyant</th></tr></thead><tbody>';
+  c.quant.forEach(function (q) { h += ligne(q.label, q.som, q.lu, q.ecart, q.voyant, q.texte); });
+  if (c.montants) c.montants.forEach(function (r) { h += ligne(r.label, blFmt(r.som), blFmt(r.lu), blFmt(r.ecart), r.voyant, r.texte); });
+  if (c.chiffres) h += '<tr><td>Chiffres du document (montants, TVA)</td><td class="n">-</td><td class="n">-</td><td class="n">-</td><td>' + voy(c.chiffres.voyant, c.chiffres.texte) + '</td></tr>';
+  h += '</tbody></table>';
+  if (c.raison) h += '<p class="hint"><i>' + esc(c.raison) + '</i></p>';
+  if (c.nbSansMontant) h += '<p class="bl-rouge">' + c.nbSansMontant + ' ligne(s) sans montant lu : la somme est incomplète.</p>';
+  return h;
+}
+function htmlBlLigne(l, prix) {
+  var q = l.qtyTxt + (l.qtyEgal != null ? ' = ' + l.qtyEgal : '');
+  var alerte = l.alerte ? '<span class="bl-v bl-' + l.alerte.etat + ' bl-alerte" title="' + esc(l.alerte.titre) + '" aria-label="' + esc(l.alerte.titre) + '"></span>' : '';
+  var lu = '<div class="bl-lu"><span class="bl-c bl-c-ref" data-l="Réf./EAN">' + esc(l.ref) + '</span><span class="bl-c bl-c-des" data-l="Désignation">' + esc(l.desig) + (l.note ? '<br><small>' + esc(l.note) + '</small>' : '') + '</span>' +
+    '<span class="bl-c bl-c-qte n" data-l="Qté">' + alerte + esc(q) + '</span>';
+  if (prix) {
+    lu += '<span class="bl-c bl-det bl-c-pu n" data-l="PU">' + esc(l.puTxt) + '</span><span class="bl-c bl-det bl-c-rem n" data-l="Remise">' + esc(l.remiseTxt) + '</span><span class="bl-c bl-det bl-c-mt n" data-l="Montant">' + esc(l.montantTxt) + '</span>' +
+      '<span class="bl-c bl-det bl-c-ctl" data-l="Contrôle ligne"><span class="bl-v bl-' + (l.ctl.etat === 'sans controle' ? 'gris' : l.ctl.etat) + '"></span>' + esc(l.ctl.texte) + '</span>';
+  }
+  if (l.ign) return '<div class="bl-art bl-ignoree" data-r="' + l.r + '">' + lu + '<span class="bl-c bl-c-ign" data-l="Article">ligne ignorée (transport, remise, total…)</span></div></div>';
+  lu += '<span class="bl-c bl-c-art" data-l="Article proposé (stock)"><span class="bl-artz" title="' + esc(l.artTitre) + '">' + esc(l.artTxt) + '</span></span>' +
+    '<span class="bl-c bl-det bl-c-conf n" data-l="Confiance">' + l.conf + ' %</span><span class="bl-c bl-c-cls" data-l="Classe">' + esc(l.classe) + '</span></div>';
+  var mod = '<div class="bl-mod" title="Mes adaptations"><span class="bl-c bl-m-ref" data-l="Référence"><input class="bl-refm" type="text" data-act="ref" value="' + esc(l.ref) + '" aria-label="Référence modifiée" autocomplete="off"></span>' +
+    '<span class="bl-c bl-m-rech" data-l="Recherche d\'article"><input class="bl-rq" type="text" value="' + esc(l.rechVal) + '" aria-label="Texte à rechercher" enterkeyhint="search" autocomplete="off"><span class="bl-res"></span></span>' +
+    '<span class="bl-c bl-m-qte n" data-l="Quantité"><input class="bl-qte" type="number" inputmode="decimal" min="0" step="any" data-act="qte" value="' + esc(l.qteVal) + '" aria-label="Quantité"></span>' +
+    '<span class="bl-c bl-m-ic" data-l="Décision"><span class="bl-barre">' + BL_BARRE.map(htmlBlIcone).join('') + '</span><span class="bl-badge" hidden>référence retenue</span></span></div>';
+  return '<div class="bl-art ' + l.cls + '" data-r="' + l.r + '">' + lu + mod + '</div>';
+}
+function htmlBlEnTete(prix) {
+  return '<div class="bl-th"><span>Réf./EAN</span><span>Désignation</span><span class="n">Qté</span>' + (prix ? '<span class="bl-det n">PU</span><span class="bl-det n">Remise</span><span class="bl-det n">Montant</span><span class="bl-det">Contrôle ligne</span>' : '') +
+    '<span>Article proposé (stock)</span><span class="bl-det n">Confiance</span><span>Classe</span></div>';
+}
+function htmlBlPage(m) {
+  var h = '<section class="bl-page" data-p="' + m.i + '"><p class="hint bl-info">' + esc(m.info) + '</p>';
+  if (m.verdict) return h + '<p class="bl-rouge bl-verdict" role="alert">' + esc(m.verdict) + '</p><div class="row"><button type="button" class="btn pri" data-act="diag">Ouvrir le diagnostic</button></div>' + htmlBlDiag(m) + htmlBlIdentification(m) + '</section>';
+  h += htmlBlIdentification(m);
+  h += '<p class="hint bl-nb"><b>' + m.nbDetail + '</b> lignes détail : ' + esc(m.repartition) + '</p>';
+  h += '<div class="bl-bloc"><div class="bl-grid' + (m.prix ? ' bl-prix' : '') + '">' + htmlBlEnTete(m.prix) + m.lignes.map(function (l) { return htmlBlLigne(l, m.prix); }).join('') + '</div>';
+  h += '<div class="bl-resume" data-resume>' + esc(m.resume) + '</div>';
+  h += '<details class="bl-alias"><summary>Références retenues (session)</summary><div data-alias></div><button type="button" class="btn" data-act="viderAlias">Vider</button></details>';
+  h += '<div class="row bl-valider"><button type="button" class="btn" data-act="valider">Simulation réception</button><button type="button" class="btn pri" data-act="validerfinal">Valider</button></div><div class="bl-cadre bl-final" data-final hidden></div></div>';
+  h += '<div data-ctl>' + htmlBlControle(m.ctl) + '</div>';
+  if (m.texteLu) h += '<details class="bl-texte"><summary>Texte lu (lignes regroupées)</summary><pre>' + esc(m.texteLu) + '</pre></details>';
+  return h + htmlBlDiag(m) + '</section>';
+}
+/* repli « Diagnostic de lecture » : ce que le moteur a lu (texte brut, copiable) */
+function htmlBlDiag(m) {
+  return '<details class="bl-diag"><summary>Diagnostic de lecture</summary><pre>' + esc(m.diag) + '</pre><button type="button" class="btn" data-act="copierdiag">Copier le diagnostic</button><span class="hint bl-copie" role="status"></span></details>';
 }
 /* Ecran « Magasins » (HTML pur) : la liste des magasins avec « Retirer », et la saisie d'un nouveau magasin. noms = Magasins.liste() (le principal d'abord) */
 function htmlMagasinsEntete() { return '<h2>Magasins</h2><p class="sub">Les lignes de stock choisissent leur magasin dans cette liste. « ' + esc(DEFMAG) + ' » existe toujours.</p>'; }
@@ -7645,11 +7921,418 @@ function lancerImportPhotos() {
       (echecs.length ? '<p class="hint">En échec : ' + esc(echecs.slice(0, 8).join(', ')) + (echecs.length > 8 ? '…' : '') + '</p>' : ''));
   });
 }
+/* Ecran « Bon de livraison » (Labo, essai) : une photo ou un fichier (image, PDF) est lu SUR L'APPAREIL, le moteur propose des articles du stock, la personne decide ligne par ligne.
+   LECTURE SEULE + SIMULATION : rien n'est ecrit dans la base, aucun alias stocke, aucun document conserve apres la fermeture de l'ecran, rien n'est envoye hors de l'appareil.
+   Le moteur et les bibliotheques (EnvDev\bl\, reglages dans bl\reglages.js) ne sont charges qu'a l'ouverture de l'ecran, jamais au demarrage de l'application. */
+var BL = { R: null, M: null, promesse: null, stock: null, tess: null, pdfjs: null, worker: null, wPromesse: null, fichier: null, vigTmp: null, pages: [], occupe: false, jeton: 0, prix: false };
+
+/* ---- moteur et bibliotheques, a la demande ---- */
+function chargerMoteurBl() {
+  if (BL.promesse) return BL.promesse;
+  BL.promesse = import('./bl/reglages.js').then(function (R) {
+    return Promise.all([import(R.CHEMINS.moteur), import(R.CHEMINS.image)]).then(function (m) { BL.R = R; BL.M = { lec: m[0], pre: m[1] }; return BL.M; });
+  }).catch(function (e) { BL.promesse = null; e.moteur = true; throw e; });
+  return BL.promesse;
+}
+function tesseractBl() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (!BL.tess) {
+    BL.tess = new Promise(function (ok, ko) {
+      var s = document.createElement('script'); s.src = BL.R.CHEMINS.tesseract;
+      s.onload = function () { if (window.Tesseract) ok(window.Tesseract); else { BL.tess = null; ko(new Error('tesseract')); } };
+      s.onerror = function () { BL.tess = null; ko(new Error('tesseract')); };
+      document.head.appendChild(s);
+    });
+  }
+  return BL.tess;
+}
+function pdfBl() {
+  if (!BL.pdfjs) BL.pdfjs = import(BL.R.CHEMINS.pdf).then(function (p) { p.GlobalWorkerOptions.workerSrc = BL.R.CHEMINS.pdfWorker; return p; }).catch(function (e) { BL.pdfjs = null; e.moteur = true; throw e; });
+  return BL.pdfjs;
+}
+/* l'OCR (un seul travailleur, cree a la premiere photo, arrete a la fermeture de l'ecran) */
+function travailleurBl(jeton) {
+  if (BL.worker) return Promise.resolve(BL.worker);
+  if (!BL.wPromesse) {
+    var p = tesseractBl().then(function (T) {
+      return T.createWorker(BL.R.LANGUES.join('+'), 1, { workerPath: BL.R.CHEMINS.worker, corePath: BL.R.CHEMINS.coeurs, langPath: BL.R.CHEMINS.langues, gzip: true, cacheMethod: 'none', workerBlobURL: false });
+    }).then(function (w) {
+      return w.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' }).then(function () {
+        if (jeton !== BL.jeton) { Promise.resolve(w.terminate()).catch(function () { /* deja arrete */ }); throw new Error('ecran ferme'); }
+        BL.worker = w; return w;
+      });
+    }).catch(function (e) { if (BL.wPromesse === p) BL.wPromesse = null; e.moteur = true; throw e; });
+    BL.wPromesse = p;
+  }
+  return BL.wPromesse;
+}
+function ocrBl(cv, echelle, jeton) {
+  return travailleurBl(jeton).then(function (w) { return w.recognize(cv, {}, { blocks: true }); }).then(function (r) {
+    var items = [];
+    ((r.data && r.data.blocks) || []).forEach(function (b) { (b.paragraphs || []).forEach(function (p) { (p.lines || []).forEach(function (l) { (l.words || []).forEach(function (wd) {
+      if (!wd.text || !wd.text.trim()) return;
+      items.push({ t: wd.text, x0: wd.bbox.x0 / echelle, y0: wd.bbox.y0 / echelle, x1: wd.bbox.x1 / echelle, y1: wd.bbox.y1 / echelle, conf: wd.confidence });
+    }); }); }); });
+    return items;
+  });
+}
+
+/* ---- ouverture et fermeture ---- */
+function ouvrirBonLivraison() {
+  var d = fenetreAction('bldlg', 'blh', 'blc', 'blf');
+  if (!d.dataset.pret) {
+    d.dataset.pret = '1';
+    d.addEventListener('click', clicBl); d.addEventListener('change', changeBl); d.addEventListener('input', saisieBl); d.addEventListener('keydown', toucheBl); d.addEventListener('close', libererBl);
+    window.addEventListener('resize', majMiseEnPageBl);
+  }
+  BL.prix = Roles.peut('prix'); BL.jeton++; BL.occupe = false; BL.stock = null;
+  $('blh').innerHTML = htmlBlEntete(); $('blc').innerHTML = htmlBlCorps(BL.prix); $('blf').innerHTML = htmlBlPied();
+  d.showModal();
+  var jeton = BL.jeton;
+  chargerMoteurBl().then(function (M) {
+    if (jeton !== BL.jeton) return;
+    BL.stock = M.lec.stockDepuisArticles(blStockDepuisArticles(Donnees.vivantes()));
+    $('blver').textContent = 'moteur BL ' + M.lec.VERSION_LECTURE + ' (' + BL_COPIE + ')';
+    if (!BL.occupe) etatBl(BL.stock.items.length ? 'Prêt. Stock de l\'application : ' + BL.stock.items.length + ' article(s) en mémoire (lecture seule).' : 'Prêt, mais aucun article en mémoire sur cet appareil : rien ne pourra être reconnu.');
+  }, function () { if (jeton === BL.jeton) etatBl('Moteur de lecture indisponible (fichiers non chargés) : vérifie le réseau puis rouvre l\'écran.', true); });
+}
+/* fermeture : tout est libere (resultat, document, vignettes, canvas, travailleur OCR) */
+function libererBl() {
+  BL.jeton++; BL.occupe = false; BL.stock = null;
+  viderResultatBl();
+  if (BL.worker) { var w = BL.worker; BL.worker = null; Promise.resolve(w.terminate()).catch(function () { /* deja arrete */ }); }
+  BL.wPromesse = null;
+  var a = $('blagr'); if (a && a.open) a.close();
+}
+function etatBl(texte, erreur) { var e = $('bletat'); if (!e) return; e.textContent = texte; e.className = 'bl-etat' + (erreur ? ' bl-err' : ''); }
+function majBoutonsBl() { ['blphoto', 'blfichier'].forEach(function (id) { var b = $(id); if (b) b.disabled = BL.occupe; }); }
+function libererCanvasBl(el) { if (!el) return; [].forEach.call(el.querySelectorAll('canvas'), function (c) { c.width = 0; c.height = 0; }); el.innerHTML = ''; }
+/* efface le resultat affiche et libere le document garde en memoire */
+function viderResultatBl() {
+  BL.pages = []; BL.fichier = null;
+  var s = $('blsortie'); if (s) s.innerHTML = '';
+  libererCanvasBl($('blvigc')); if ($('blvig')) $('blvig').hidden = true;
+  libererCanvasBl($('blagrc'));
+  if (BL.vigTmp) { BL.vigTmp.width = 0; BL.vigTmp.height = 0; BL.vigTmp = null; }
+}
+
+/* ---- lecture d'un fichier ---- */
+function lireBl(f) {
+  if (!f || BL.occupe) return;
+  var jeton = BL.jeton;
+  BL.occupe = true; majBoutonsBl();
+  etatBl('Lecture de ' + f.name + ' …');
+  chargerMoteurBl().then(function () { return lireFichierBl(f, jeton); }).then(function (pages) {
+    if (jeton !== BL.jeton) return;
+    afficherBl(pages, f);
+  }).catch(function (e) {
+    if (BL.vigTmp) { BL.vigTmp.width = 0; BL.vigTmp.height = 0; BL.vigTmp = null; }
+    if (jeton !== BL.jeton) return;
+    if (window.console) console.warn('Bon de livraison :', f.name, e);
+    etatBl(e && e.moteur ? 'Moteur de lecture indisponible (fichiers non chargés) : vérifie le réseau puis réessaie.'
+      : 'Fichier illisible : ' + f.name + ' (image ou PDF attendu).' + (BL.pages.length ? ' Le résultat précédent est conservé.' : ''), true);
+  }).then(function () { if (jeton === BL.jeton) { BL.occupe = false; majBoutonsBl(); } });
+}
+function lireFichierBl(f, jeton) {
+  if (!f.size) return Promise.reject(new Error('fichier vide'));
+  return f.slice(0, 5).arrayBuffer().then(function (b) {
+    var pdf = String.fromCharCode.apply(null, new Uint8Array(b)) === '%PDF-' || /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    return pdf ? pagesPdfBl(f, jeton) : pagesImageBl(f, jeton);
+  });
+}
+/* image ou photo : orientation EXIF corrigee, largeur ramenee a CIBLE_LARGEUR (reglages.js), nettoyage, OCR. L'initialisation de l'OCR n'est PAS comptee dans « preparation de l'image ». */
+function bitmapBl(f) { return createImageBitmap(f, { imageOrientation: 'from-image' }).catch(function () { return createImageBitmap(f); }); }
+function pagesImageBl(f, jeton) {
+  var cv = null, nettoye = null;
+  var liberer = function () { [cv, nettoye].forEach(function (c) { if (c) { c.width = 0; c.height = 0; } }); };
+  return bitmapBl(f).then(function (bmp) { /* d'abord le decodage : une image illisible echoue sans meme charger l'OCR */
+    return travailleurBl(jeton).then(function () {
+      var t0 = performance.now(); /* le chrono demarre APRES l'initialisation de l'OCR : elle n'entre jamais dans « preparation de l'image » */
+      var sw = bmp.width, sh = bmp.height, plan = blPlanRedimension(bmp.width, bmp.height, BL.R.CIBLE_LARGEUR);
+      cv = document.createElement('canvas'); cv.width = plan.w2; cv.height = plan.h2;
+      var ctx = cv.getContext('2d'); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bmp, 0, 0, plan.w2, plan.h2);
+      var ev = Math.min(1, 300 / bmp.width), vc = document.createElement('canvas'); vc.width = Math.max(1, Math.round(bmp.width * ev)); vc.height = Math.max(1, Math.round(bmp.height * ev));
+      vc.getContext('2d').drawImage(bmp, 0, 0, vc.width, vc.height); BL.vigTmp = vc;
+      if (bmp.close) bmp.close();
+      var r = BL.M.pre.nettoyer(cv); nettoye = r.canvas;
+      var t1 = performance.now();
+      return ocrBl(nettoye, plan.e, jeton).then(function (items) {
+        return [{ n: 1, mode: 'OCR ' + BL.R.LANGUES.join('+') + ' (x' + plan.e.toFixed(2) + ', nettoyé, redressé ' + r.angle.toFixed(2) + ' deg)', items: items, secondes: (performance.now() - t1) / 1000, prepa: (t1 - t0) / 1000, dim: { src: sw + ' x ' + sh, lu: plan.w2 + ' x ' + plan.h2, e: plan.e } }];
+      });
+    }).catch(function (e) { if (bmp.close) bmp.close(); throw e; });
+  }).then(function (p) { liberer(); return p; }, function (e) { liberer(); throw e; });
+}
+/* PDF : texte avec positions ; PDF sans texte (scanne) : rendu en image puis OCR */
+function pagesPdfBl(f, jeton) {
+  var pdf = null, tache = null, pages = [];
+  var fermer = function () { return tache ? Promise.resolve(tache.destroy()).catch(function () { /* deja ferme */ }) : Promise.resolve(); };
+  return Promise.all([pdfBl(), f.arrayBuffer()]).then(function (r) { tache = r[0].getDocument({ data: r[1] }); return tache.promise; }).then(function (p) {
+    pdf = p;
+    var chaine = Promise.resolve();
+    for (var n = 1; n <= pdf.numPages; n++) (function (n) { chaine = chaine.then(function () { return pagePdfBl(pdf, n, jeton).then(function (pg) { pages.push(pg); }); }); })(n);
+    return chaine;
+  }).then(function () { return fermer(); }, function (e) { return fermer().then(function () { throw e; }); }).then(function () { return pages; });
+}
+function pagePdfBl(pdf, n, jeton) {
+  var t0 = performance.now(), page = null;
+  return pdf.getPage(n).then(function (p) {
+    page = p;
+    var vp = p.getViewport({ scale: 1 });
+    if (n === 1) { /* vignette : premiere page seulement */
+      var v = p.getViewport({ scale: 0.4 }), vc = document.createElement('canvas'); vc.width = Math.round(v.width); vc.height = Math.round(v.height); BL.vigTmp = vc;
+      return p.render({ canvasContext: vc.getContext('2d'), canvas: vc, viewport: v }).promise.then(function () { return vp; }, function () { return vp; });
+    }
+    return vp;
+  }).then(function (vp) {
+    return page.getTextContent().then(function (tc) {
+      var items = tc.items.filter(function (i) { return i.str && i.str.trim(); }).map(function (i) {
+        var x = i.transform[4], y = vp.height - i.transform[5], h = i.height || Math.abs(i.transform[3]) || 10;
+        return { t: i.str, x0: x, x1: x + i.width, y0: y - h, y1: y };
+      });
+      if (items.length) return { items: items, mode: 'texte PDF' };
+      var cv = document.createElement('canvas'), vp2 = page.getViewport({ scale: 2.5 });
+      cv.width = Math.round(vp2.width); cv.height = Math.round(vp2.height);
+      var libere = function () { cv.width = 0; cv.height = 0; };
+      return page.render({ canvasContext: cv.getContext('2d'), canvas: cv, viewport: vp2 }).promise.then(function () { return ocrBl(cv, 1, jeton); }).then(function (it) { libere(); return { items: it, mode: 'PDF sans texte, lu par OCR' }; }, function (e) { libere(); throw e; });
+    });
+  }).then(function (r) { return { n: n, mode: r.mode, items: r.items, secondes: (performance.now() - t0) / 1000, prepa: null }; });
+}
+
+/* ---- affichage du resultat ---- */
+function afficherBl(pages, f) {
+  var lec = BL.M.lec, res = pages.map(function (p) {
+    var t = lec.analyser(p.items, BL.stock);
+    return { p: p, t: t, d: blDecisions(t.rows), prix: BL.prix && !!t.prix && !t.verdict, meta: { nbLu: t.totaux.nbLignes, pieces: t.totaux.pieces } };
+  });
+  var vig = BL.vigTmp; BL.vigTmp = null;
+  viderResultatBl(); /* une nouvelle lecture efface le resultat precedent */
+  BL.fichier = f; BL.pages = res;
+  dessinerBl();
+  if (vig) { $('blvigc').appendChild(vig); $('blvig').hidden = false; }
+  var total = pages.reduce(function (s, p) { return s + p.secondes + (p.prepa || 0); }, 0);
+  var lisibles = res.filter(function (r) { return !r.t.verdict; }).length;
+  if (lisibles) etatBl('Terminé : ' + f.name + ' (' + total.toFixed(1) + ' s). Vérifie chaque ligne.');
+  else etatBl(blMessageVerdict(res[0].t.verdict), true); /* rien d'exploitable : message d'alerte (le detail est sous l'etat) */
+}
+function dessinerBl() {
+  var s = $('blsortie'); if (!s) return;
+  s.innerHTML = BL.pages.map(function (pg, i) { return htmlBlPage(modelePageBl(pg, i)); }).join('');
+  s.classList.toggle('bl-avec-det', !!$('bldet').checked); majMiseEnPageBl();
+  BL.pages.forEach(function (pg, i) { var sec = s.querySelector('.bl-page[data-p="' + i + '"]'); if (sec && !pg.t.verdict) { majResumeBl(sec, pg); } });
+  majAliasBl();
+}
+function modelePageBl(pg, i) {
+  var t = pg.t, p = pg.p, idf = t.identification || {}, prix = pg.prix;
+  var champs = [['emetteur', 'Émetteur', idf.emetteur], ['numero', 'N° de bon de livraison', idf.numeros && idf.numeros.length ? idf.numeros.join(', ') : null], ['date', 'Date', idf.date], ['reference', 'Votre référence / commande', idf.reference_client],
+    ['transporteur', 'Transporteur', idf.transporteur], ['colis', 'Colis', idf.colis], ['page', 'Page', idf.page]];
+  var m = { i: i, prix: prix, verdict: blMessageVerdict(t.verdict), diag: blTexteDiagnostic(pg, BL.prix, BL.M.lec.VERSION_LECTURE), ident: champs.map(function (c) { return { k: c[0], l: c[1], v: c[2] }; }),
+    info: 'Page ' + p.n + ' : ' + p.mode + ' · lecture ' + p.secondes.toFixed(2) + ' s' + (p.prepa != null ? ' (+ préparation de l\'image ' + p.prepa.toFixed(2) + ' s)' : '') + ' · ' + p.items.length + ' boîtes de texte' };
+  if (t.verdict) return m;
+  var ok = 0, ver = 0, non = 0, ign = 0;
+  t.rows.forEach(function (r) { if (r.statut === 'ignoree') ign++; else if (r.proposition.classe === 'reconnu') ok++; else if (r.proposition.classe === 'a verifier') ver++; else non++; });
+  m.nbDetail = t.rows.length; m.repartition = ok + ' reconnues, ' + ver + ' à vérifier, ' + non + ' non reconnues, ' + ign + ' ignorées';
+  m.resume = blResume(pg.d).texte;
+  m.lignes = t.rows.map(function (r, ri) {
+    var pr = r.proposition, c = r.controle || {}, d = pg.d[ri];
+    var ctlTexte = c.etat === 'rouge' ? (c.attendu != null ? 'attendu ' + blFmt(c.attendu) + ', écart ' + blFmt(c.ecart) : (c.note || '')) : c.etat === 'orange' ? 'arrondi (écart ' + blFmt(c.ecart) + ')' : c.etat === 'vert' ? 'juste' : 'pas de contrôle';
+    var l = { r: ri, ign: d.ign, cls: d.ign ? 'bl-ignoree' : pr.classe === 'reconnu' ? 'bl-reconnu' : pr.classe === 'a verifier' ? 'bl-averifier' : 'bl-nonreconnu',
+      ref: r.ref, desig: r.desig, note: r.note, qtyTxt: r.qtyTxt, qtyEgal: r.qty != null && /x/i.test(r.qtyTxt) ? r.qty : null, alerte: t.prix ? blAlerteLigne(c, BL.prix) : null,
+      artTxt: d.artTxt, artTitre: d.artTitre, conf: pr ? pr.conf : 0, classe: pr ? pr.classe : '', qteVal: r.qty != null ? r.qty : '', rechVal: r.desig || r.ref || '' };
+    if (prix) { l.puTxt = r.puTxt; l.remiseTxt = r.remiseTxt; l.montantTxt = r.montantTxt; l.ctl = { etat: c.etat || 'sans controle', texte: ctlTexte }; }
+    return l;
+  });
+  m.ctl = modeleControleBl(pg);
+  m.texteLu = BL.prix ? t.texteLignes.join('\n') : null;
+  return m;
+}
+/* tableau de controle : nombre de lignes et quantites (selon les decisions), puis les montants (droit « prix ») ou un simple voyant sans montant */
+function modeleControleBl(pg) {
+  var t = pg.t, c = t.controle, m = { quant: blControleQuantites(pg.d, pg.meta) };
+  if (!c.applicable) { m.raison = c.raison; return m; }
+  if (!BL.prix) { m.chiffres = blVoyantChiffres(c.global); return m; }
+  var texte = function (v, g) { return v === 'gris' ? g : v; };
+  m.montants = [
+    { label: c.base.nom, som: c.somme, lu: c.base.lu, ecart: c.base.ecart, voyant: c.base.voyant, texte: texte(c.base.voyant, 'total non lu sur ce document') },
+    { label: 'TVA' + (t.totaux.tvaTaux != null ? ' ' + t.totaux.tvaTaux + ' %' : ''), som: c.tva.attendu, lu: c.tva.lu, ecart: c.tva.ecart, voyant: c.tva.voyant, texte: texte(c.tva.voyant, 'non contrôlable') },
+    { label: 'TTC (HT + TVA)', som: c.ttc.attendu, lu: c.ttc.lu, ecart: c.ttc.ecart, voyant: c.ttc.voyant, texte: texte(c.ttc.voyant, 'non contrôlable') }];
+  m.nbSansMontant = c.nbSansMontant;
+  return m;
+}
+function majResumeBl(sec, pg) {
+  var r = sec.querySelector('[data-resume]'), c = sec.querySelector('[data-ctl]');
+  if (r) r.textContent = blResume(pg.d).texte;
+  if (c) c.innerHTML = htmlBlControle(modeleControleBl(pg));
+}
+function majAliasBl() {
+  if (!BL.M) return;
+  var l = [];
+  BL.M.lec.ALIAS.forEach(function (a) { l.push('<li>' + esc(a.emetteur || '(émetteur vide)') + ' : ' + esc(a.ref) + ' → ' + esc(a.item.ref + ' ' + a.item.nom) + '</li>'); });
+  [].forEach.call(document.querySelectorAll('#blsortie [data-alias]'), function (e) { e.innerHTML = l.length ? '<ul>' + l.join('') + '</ul>' : '<span class="hint">aucune référence retenue</span>'; });
+}
+/* une ligne change d'etat : couleur de la ligne (aucun mot), boutons actifs, article choisi, bouton Confiance */
+function majLigneBl(art, d) {
+  var e = blEtatLigne(d);
+  art.classList.toggle('bl-ok', e === 'confirmee'); art.classList.toggle('bl-md', e === 'modifiee'); art.classList.toggle('bl-no', e === 'ecartee');
+  art.setAttribute('data-etat', e);
+  art.querySelector('[data-act="ok"]').classList.toggle('bl-actif', d.st === 'confirmee');
+  art.querySelector('[data-act="no"]').classList.toggle('bl-actif', d.st === 'ecartee');
+  if (d.pick) { var z = art.querySelector('.bl-artz'); z.textContent = d.item.ref + ' ' + d.item.nom; z.title = d.item.ref + ' ' + d.item.nom + ' - choisi par vous (recherche)'; }
+  art.querySelector('[data-act="confiance"]').disabled = !(d.item && String(d.ref == null ? '' : d.ref).trim());
+  art.querySelector('.bl-badge').hidden = !d.retenu;
+}
+function contexteBl(el) {
+  var sec = el.closest('.bl-page'); if (!sec) return null;
+  var pg = BL.pages[Number(sec.getAttribute('data-p'))]; if (!pg) return null;
+  return { sec: sec, pg: pg, bloc: sec.querySelector('.bl-bloc'), art: el.closest('.bl-art') };
+}
+
+/* ---- evenements ---- */
+function changeBl(ev) {
+  var t = ev.target;
+  if (t.id === 'blinp1' || t.id === 'blinp2') { var f = t.files && t.files[0]; t.value = ''; if (f) lireBl(f); return; }
+  if (t.id === 'bldet') { $('blsortie').classList.toggle('bl-avec-det', t.checked); majMiseEnPageBl(); }
+}
+/* tableau si la largeur le permet, sinon cartes : 700 px sans les details, 940 px avec les details de prix */
+function majMiseEnPageBl() {
+  var s = $('blsortie'), d = $('bldlg'); if (!s || !d || !d.open) return;
+  var large = s.clientWidth, details = s.classList.contains('bl-avec-det'), prix = BL.pages.some(function (pg) { return pg.prix; });
+  s.classList.toggle('bl-cartes', large < (details && prix ? 940 : 700));
+}
+function saisieBl(ev) {
+  var el = ev.target, act = el.getAttribute && el.getAttribute('data-act'); if (act !== 'ref' && act !== 'qte') return;
+  var k = contexteBl(el); if (!k || !k.art) return;
+  var x = k.pg.d[Number(k.art.getAttribute('data-r'))];
+  if (act === 'ref') x.ref = el.value; else x.qte = el.value === '' ? null : Number(el.value);
+  x.modif = true; if (x.st === 'ecartee') x.st = 'attente';
+  majLigneBl(k.art, x); majResumeBl(k.sec, k.pg);
+}
+function toucheBl(ev) {
+  if (ev.key !== 'Enter' || ev.shiftKey || !ev.target.matches || !ev.target.matches('.bl-rq')) return;
+  ev.preventDefault(); var k = contexteBl(ev.target); if (k && k.art) lancerRechBl(k.art);
+}
+function clicBl(ev) {
+  var t = ev.target;
+  if (t.closest('#blvig')) { ouvrirAgrBl(); return; }
+  var b = t.closest('button'); if (!b) return;
+  if (b.id === 'blx') { $('bldlg').close(); return; }
+  if (b.id === 'blphoto') { $('blinp1').click(); return; }
+  if (b.id === 'blfichier') { $('blinp2').click(); return; }
+  var act = b.getAttribute('data-act'), k = act ? contexteBl(b) : null; if (!k) return;
+  if (act === 'diag') { var dg = k.sec.querySelector('.bl-diag'); dg.open = true; dg.scrollIntoView({ block: 'start' }); return; }
+  if (act === 'copierdiag') { copierDiagBl(k.sec.querySelector('.bl-diag pre').textContent, k.sec.querySelector('.bl-copie')); return; }
+  if (act === 'viderAlias') { BL.M.lec.ALIAS.clear(); majAliasBl(); return; }
+  if (act === 'valider' || act === 'validerfinal' || act === 'continuer' || act === 'annulerval') { validerBl(act, k); return; }
+  if (!k.art) return;
+  var x = k.pg.d[Number(k.art.getAttribute('data-r'))];
+  if (act === 'ok') { x.st = 'confirmee'; }
+  else if (act === 'no') { x.st = 'ecartee'; }
+  else if (act === 'rechercher') { lancerRechBl(k.art); return; }
+  else if (act === 'confiance') {
+    /* memoire de SESSION seulement (perdue au rechargement) : aucun stockage durable */
+    var champ = k.sec.querySelector('.bl-gest [data-champ="emetteur"]'), emetteur = champ ? champ.value : '', cle = BL.M.lec.cleAlias(emetteur, x.ref);
+    if (!cle || !x.item) return;
+    BL.M.lec.ALIAS.set(cle, { item: x.item, emetteur: emetteur, ref: x.ref });
+    x.retenu = true; majAliasBl();
+  }
+  else if (act === 'annuler') {
+    x.st = 'attente'; x.modif = false; x.pick = false; x.retenu = false; x.item = x.item0; x.qte = x.qte0; x.ref = x.ref0;
+    var z = k.art.querySelector('.bl-artz'); z.textContent = x.artTxt; z.title = x.artTitre;
+    k.art.querySelector('.bl-refm').value = x.ref0 == null ? '' : x.ref0;
+    k.art.querySelector('.bl-qte').value = x.qte0 != null ? x.qte0 : '';
+    k.art.querySelector('.bl-res').innerHTML = '';
+  }
+  else if (act === 'pick') {
+    x.item = BL.stock.items[Number(b.getAttribute('data-i'))]; x.modif = true; x.pick = true; x.ref = x.item.ref;
+    k.art.querySelector('.bl-refm').value = x.item.ref;
+    if (x.st === 'ecartee') x.st = 'attente';
+    k.art.querySelector('.bl-res').innerHTML = '';
+  }
+  else return;
+  majLigneBl(k.art, x); majResumeBl(k.sec, k.pg);
+}
+/* « Copier le diagnostic » : presse-papiers (texte brut) ; sinon selection a la main */
+function copierDiagBl(texte, etat) {
+  var dit = function (m) { etat.textContent = m; };
+  var secours = function () {
+    try {
+      var ta = document.createElement('textarea'); ta.value = texte; ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0'; document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok = document.execCommand('copy'); document.body.removeChild(ta); dit(ok ? '✓ Diagnostic copié.' : '✗ Copie impossible : sélectionne le texte et copie-le à la main.');
+    } catch (e) { dit('✗ Copie impossible : sélectionne le texte et copie-le à la main.'); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(texte).then(function () { dit('✓ Diagnostic copié.'); }, secours); else secours();
+}
+/* recherche d'article dans le stock : seulement au clic sur la loupe ou a Entree (pas a la frappe), 10 resultats au plus */
+function lancerRechBl(art) {
+  var q = fold(art.querySelector('.bl-rq').value).trim(), res = art.querySelector('.bl-res');
+  if (!q) { res.innerHTML = '<small>zone vide</small>'; return; }
+  var mots = q.split(/[^a-z0-9]+/).filter(function (m) { return m.length >= 2; }), sc = [], items = BL.stock.items;
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i]; if (it.rech === undefined) it.rech = fold(it.ref + ' ' + it.nom + ' ' + (it.eans || []).join(' ') + ' ' + (it.fo || ''));
+    var s = it.rech.indexOf(q) > -1 ? mots.length + 1 : 0;
+    if (!s) for (var j = 0; j < mots.length; j++) if (it.rech.indexOf(mots[j]) > -1) s++;
+    if (s) sc.push([s, i]);
+  }
+  sc.sort(function (a, b) { return b[0] - a[0] || a[1] - b[1]; });
+  var trouves = sc.slice(0, 10);
+  res.innerHTML = trouves.length ? trouves.map(function (x) { return '<button type="button" data-act="pick" data-i="' + x[1] + '">' + esc(items[x[1]].ref + ' ' + items[x[1]].nom) + '</button>'; }).join('') : '<small>aucun résultat</small>';
+}
+/* « Simulation reception » puis « Valider » : une maquette, rien n'est enregistre ni envoye */
+function validerBl(act, k) {
+  var r = blLignesReception(k.pg.d), cadre = k.bloc.querySelector('[data-final]'); cadre.hidden = false;
+  var liste = '<ul>' + r.lignes.map(function (x) { return '<li>' + (x.libelle ? esc(x.libelle) : '<i>aucun article</i>') + ' - quantité : <b>' + (x.qte != null ? esc(x.qte) : '?') + '</b></li>'; }).join('') + '</ul>';
+  if (act === 'valider') cadre.innerHTML = '<b>Réception à valider (' + r.lignes.length + ' ligne(s))</b>' + liste + '<p class="hint">simulation : rien n\'est enregistré</p>';
+  else if (act === 'annulerval') { cadre.hidden = true; cadre.innerHTML = ''; }
+  else if (act === 'validerfinal' && r.attente > 0) cadre.innerHTML = '<p class="bl-rouge">' + r.attente + ' ligne(s) sans décision ne seront pas reçues.</p><button type="button" class="btn" data-act="continuer">Continuer</button><button type="button" class="btn" data-act="annulerval">Annuler</button>';
+  else {
+    cadre.innerHTML = '<b>Réception validée (maquette : rien n\'est enregistré ni envoyé)</b>' + liste;
+    k.bloc.classList.add('bl-verrou');
+    [].forEach.call(k.bloc.querySelectorAll('input,button'), function (e) { e.disabled = true; });
+  }
+}
+
+/* ---- agrandissement du document lu : dessine tout en canvas (aucun objet URL), libere a la fermeture ---- */
+function ouvrirAgrBl() {
+  if (!BL.fichier) return;
+  var d = $('blagr');
+  if (!d) {
+    d = document.createElement('dialog'); d.id = 'blagr'; d.innerHTML = htmlBlAgrandi(); document.body.appendChild(d);
+    d.addEventListener('click', function (ev) { if (ev.target === d || ev.target.id === 'blagrx' || ev.target.id === 'blagrc') d.close(); });
+    d.addEventListener('close', function () { libererCanvasBl($('blagrc')); });
+  }
+  libererCanvasBl($('blagrc')); d.showModal(); $('blagrc').scrollTop = 0;
+  var f = BL.fichier, cont = $('blagrc');
+  rendreDocBl(f, cont, 2, 1800).catch(function () { cont.textContent = 'Agrandissement indisponible.'; });
+}
+function rendreDocBl(f, cont, echellePdf, largeurMax) {
+  var pdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+  if (!pdf) {
+    return bitmapBl(f).then(function (bmp) {
+      var e = Math.min(1, largeurMax / bmp.width), cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(bmp.width * e)); cv.height = Math.max(1, Math.round(bmp.height * e));
+      var ctx = cv.getContext('2d'); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+      if (bmp.close) bmp.close(); cont.appendChild(cv);
+    });
+  }
+  var doc = null, tache = null;
+  var fermer = function () { return tache ? Promise.resolve(tache.destroy()).catch(function () { /* deja ferme */ }) : Promise.resolve(); };
+  return Promise.all([pdfBl(), f.arrayBuffer()]).then(function (r) { tache = r[0].getDocument({ data: r[1] }); return tache.promise; }).then(function (p) {
+    doc = p; var chaine = Promise.resolve();
+    for (var n = 1; n <= doc.numPages; n++) (function (n) { chaine = chaine.then(function () {
+      if (!cont.isConnected) return;
+      return doc.getPage(n).then(function (page) {
+        var vp = page.getViewport({ scale: echellePdf }), cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height); cont.appendChild(cv);
+        return page.render({ canvasContext: cv.getContext('2d'), canvas: cv, viewport: vp }).promise;
+      });
+    }); })(n);
+    return chaine;
+  }).then(function () { return fermer(); }, function (e) { return fermer().then(function () { throw e; }); });
+}
 /* Administration, groupe « Cet appareil » : Mise en veille, Etat du systeme, Partager un texte. Ce sont des vues du menu de l'Administration (voir administration.js). */
 var VUES_ADMIN = {
   adm_veille: ['Mise en veille', 'Réglage de cet appareil', function () { return htmlVeilleReglage(lireVeille(), INTERVALLE_SYNCHRO); }],
   adm_etat: ['État du système', 'Cet appareil', function () { return htmlEtatSysteme(texteCompte(Session.courante(), Roles.liste(), VERSION, Donnees.etat(), !navigator.onLine)); }],
-  adm_partage: ['Partager un texte (essai)', 'Cet appareil', htmlPartageTexte]
+  adm_labo: ['Labo', 'Essais et expérimentations', htmlLabo],
+  adm_partage: ['Partager un texte (essai)', 'Labo', htmlPartageTexte]
 };
 /* reglage de la mise en veille de cet appareil (secondes pour la camera et pour la synchro ; 0 = jamais) */
 function changeAdministration(ev) {
@@ -7693,7 +8376,7 @@ function dessinerAdministration() {
   if (!v) marquerCarteSauvegardes();
 }
 /* cartes qui ouvrent un ecran a part : [fonction d'ouverture, identifiant de sa fenetre] */
-var ECRANS_ADMIN = { adm_magasins: [ouvrirMagasins, 'mgdlg'], adm_inventaire: [ouvrirInventaire, 'ivdlg'], adm_etiquettes: [ouvrirEtiquettes, 'ladlg'], adm_journal: [ouvrirJournal, 'jdlg'], adm_sauvegardes: [ouvrirSauvegardes, 'bdlg'], adm_photos: [ouvrirPhotosAdmin, 'phadlg'], adm_externe: [ouvrirSynchroExterne, 'exdlg'], adm_utilisateurs: [ouvrirUtilisateurs, 'udlg'], adm_mails: [ouvrirEmails, 'mldlg'] };
+var ECRANS_ADMIN = { adm_magasins: [ouvrirMagasins, 'mgdlg'], adm_inventaire: [ouvrirInventaire, 'ivdlg'], adm_etiquettes: [ouvrirEtiquettes, 'ladlg'], adm_journal: [ouvrirJournal, 'jdlg'], adm_sauvegardes: [ouvrirSauvegardes, 'bdlg'], adm_photos: [ouvrirPhotosAdmin, 'phadlg'], adm_externe: [ouvrirSynchroExterne, 'exdlg'], adm_utilisateurs: [ouvrirUtilisateurs, 'udlg'], adm_mails: [ouvrirEmails, 'mldlg'], adm_bon: [ouvrirBonLivraison, 'bldlg'] };
 /* cartes qui font leur travail tout de suite */
 var ACTIONS_ADMIN = { adm_export: exporterInventaire, adm_effacer: toutEffacer, adm_import: choisirFichierImport, adm_purge: purgeServeur };
 /* ouvre un ecran a la place de l'Administration, qui se rouvre quand il se ferme (si l'ecran refuse de s'ouvrir, l'Administration reste) */
@@ -7702,11 +8385,11 @@ function ouvrirDepuisAdministration(ouvrir, idFenetre) {
   $('admdlg').close(); ouvrir();
   var f = $(idFenetre);
   if (!f || !f.open) { ouvrirAdministration(); admEtat.vue = vue; dessinerAdministration(); return; }
-  f.addEventListener('close', function retour() { f.removeEventListener('close', retour); ouvrirAdministration(); });
+  f.addEventListener('close', function retour() { f.removeEventListener('close', retour); ouvrirAdministration(); if (vue !== 'menu') { admEtat.vue = vue; dessinerAdministration(); } }); /* retour a la page d'ou l'on vient (ex. le Labo) */
 }
 function clicAdministration(ev) {
   var b = ev.target.closest('button'); if (!b) return;
-  if (b.id === 'admx') { if (admEtat.vue !== 'menu') { admEtat.vue = 'menu'; dessinerAdministration(); } else $('admdlg').close(); return; }
+  if (b.id === 'admx') { if (admEtat.vue !== 'menu') { admEtat.vue = admEtat.vue === 'adm_partage' ? 'adm_labo' : 'menu'; dessinerAdministration(); } else $('admdlg').close(); return; }
   if (b.id === 'shB' || b.id === 'shC') { clicPartage(b.id); return; }
   var id = b.getAttribute('data-adm'); if (!id) return;
   if (ECRANS_ADMIN[id]) { ouvrirDepuisAdministration(ECRANS_ADMIN[id][0], ECRANS_ADMIN[id][1]); return; }
@@ -8107,7 +8790,7 @@ function brancherChampsDate() {
   document.addEventListener('change', function (ev) { if (ev.target.getAttribute && ev.target.hasAttribute('data-calsel')) { ev.stopPropagation(); choisirDateCalendrier(ev.target); } }, true);
 }
 /* Coquille de l'application : choisit l'ecran selon l'etat d'acces (etatAcces), tient la synchro periodique et la mise en veille */
-var VERSION = '1.0.6';
+var VERSION = '1.0.11';
 
 /* accueil : scanner, blocs « A traiter » / valeur / taches (selon le role), liste des pieces, barre du bas */
 function htmlAccueil(auth, roles) {
