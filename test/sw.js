@@ -12,7 +12,7 @@ var AUTRES_ENVIRONNEMENTS = ['dev/', 'test/'];
    Cache DISTINCT, cache d'abord : scanpocket-<env>-bl-<id>, ou <id> = 8 premiers caracteres de la somme de controle de TOUT le dossier bl/ (calculee a la publication, qui remplace 'local' ci-dessous) :
    un fichier de bl/ change => nouvelle somme => nouveau cache, l'ancien est supprime a l'activation. Un nom par environnement (les trois partagent l'origine) et jamais le prefixe de l'ancienne appli (inventaire-). */
 var PREFIX_BL = 'scanpocket-test-bl-';
-var BL_VERSION = 'd4b4c8e4';
+var BL_VERSION = 'c3be3a6d';
 var V_BL = PREFIX_BL + BL_VERSION;
 var FAM_BL = new RegExp('^' + PREFIX_BL + '[0-9a-z]+$');
 var DOSSIER_BL = BASE + 'bl/';
