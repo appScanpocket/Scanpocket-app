@@ -664,7 +664,22 @@ export { reconnaitre, proposer as proposerLigne };
 // assemblerBon(ts, stock, { emetteur }) : ts = lireTableau() de chaque photo, la premiere avec son en-tete. Retourne UN bon : lignes dans l'ordre (photo 1, 2, ...), identification de la photo 1,
 // totaux de la derniere photo qui en porte, reconnaissance des articles sur l'ensemble, controle arithmetique, doublons SIGNALES (jamais retires) et alertes.
 const pageDe = (t) => { const m = /^(\d+)\/(\d+)$/.exec(extraireIdentification(t.texteLignes).page || ''); return m ? [Number(m[1]), Number(m[2])] : null; };
-const cleLigne = (r) => norm(r.ref) + '|' + norm(r.desig) + '|' + r.qty;
+// deux lignes lues se ressemblent-elles ? designation proche (>= 0,8 par lettres ou par mots), reference proche si elle est lue des deux cotes, quantite compatible si lue des deux cotes
+const similitude = (a, b) => {
+  const x = norm(a), y = norm(b); if (!x || !y) return 0;
+  const m = Math.max(x.length, y.length), lettres = 1 - lev(x, y, m) / m;
+  const A = new Set(toks(a)), B = new Set(toks(b)), commun = [...A].filter((w) => B.has(w)).length, mots = A.size + B.size ? (2 * commun) / (A.size + B.size) : 0;
+  return Math.max(lettres, mots);
+};
+const nombresDe = (s) => String(s == null ? '' : s).match(/\d+/g) || [];
+function memeLigne(a, b) {
+  const refs = norm(a.ref) && norm(b.ref);
+  if (!norm(a.desig) && !norm(b.desig) && !refs) return false;
+  if (refs && similitude(a.ref, b.ref) < 0.8) return false;
+  if (norm(a.desig) && norm(b.desig) ? similitude(a.desig, b.desig) < 0.8 : !refs) return false;
+  if (a.qty != null && b.qty != null && a.qty !== b.qty && !nombresDe(a.qtyTxt).some((n) => nombresDe(b.qtyTxt).includes(n))) return false;
+  return true;
+}
 export function assemblerBon(ts, stock, opts) {
   opts = opts || {};
   const t0 = ts[0], suite = ts.slice(1), pages = suite.map(pageDe);
@@ -685,13 +700,13 @@ export function assemblerBon(ts, stock, opts) {
   if (m.verdict) { m.identification = extraireIdentification([]); m.rows = []; m.controle = controleArith(m); return m; }
   m.identification = extraireIdentification(t0.indexEntete != null ? t0.texteLignes.slice(0, t0.indexEntete) : []);
   reconnaitre(m, stock, opts.emetteur);
-  // doublons : bloc de lignes consecutives identiques entre la fin de la photo k-1 et le debut de la photo k (signalement seulement)
+  // doublons : bloc de 1 a 4 lignes consecutives SEMBLABLES (comparaison tolerante au bruit de l'OCR) entre la fin de la photo k-1 et le debut de la photo k (signalement seulement, rien n'est retire)
   let nbDoublons = 0;
   for (let k = 2; k <= ordre.length; k++) {
-    const prec = m.rows.filter((r) => r.photo === k - 1), cur = m.rows.filter((r) => r.photo === k);
-    for (let n = Math.min(prec.length, cur.length); n >= 1; n--) {
-      const a = prec.slice(prec.length - n).map(cleLigne), b = cur.slice(0, n).map(cleLigne);
-      if (a.every((x, i) => x === b[i] && x !== '||null')) { cur.slice(0, n).forEach((r) => { r.doublon = true; nbDoublons++; }); break; }
+    const prec = m.rows.filter((r) => r.photo === k - 1 && r.statut !== 'ignoree'), cur = m.rows.filter((r) => r.photo === k && r.statut !== 'ignoree');
+    for (let n = Math.min(4, prec.length, cur.length); n >= 1; n--) {
+      const a = prec.slice(prec.length - n), b = cur.slice(0, n);
+      if (a.every((x, i) => memeLigne(x, b[i]))) { b.forEach((r) => { r.doublon = true; nbDoublons++; }); break; }
     }
   }
   m.controle = controleArith(m);
