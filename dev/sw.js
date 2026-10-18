@@ -1,9 +1,13 @@
 /* Service worker : mode hors ligne de Scanpocket (cache distinct de l'ancienne application, meme origine).
    Le nom du cache porte l'environnement (dev ici ; la livraison en fait scanpocket-test-v et scanpocket-prod-v pour les autres dossiers : une seule source) et seules les anciennes versions du cache de CET environnement sont supprimees. */
-var VERSION_CACHE = 5; /* à augmenter seulement si la logique du cache change */
+var VERSION_CACHE = 6; /* à augmenter seulement si la logique du cache change */
 var PREFIX = 'scanpocket-dev-v';
 var V = PREFIX + VERSION_CACHE;
 var FAM = new RegExp('^' + PREFIX + '\\d+$');
+/* La PRODUCTION est à la RACINE du site, DEV et TEST dans les sous-dossiers dev/ et test/ : le service worker de la racine ne doit ni contrôler ni mettre en cache ces pages
+   (chaque environnement a son propre service worker, avec sa portée et son cache). BASE = dossier de CE service worker ; pour dev/ et test/ la liste ne correspond à rien. */
+var BASE = new URL('./', self.location.href).pathname;
+var AUTRES_ENVIRONNEMENTS = ['dev/', 'test/'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
@@ -29,6 +33,8 @@ self.addEventListener('fetch', function (e) {
   if (u.protocol !== 'http:' && u.protocol !== 'https:') return;
   /* La synchronisation Firebase ne passe jamais par le cache */
   if (/firebaseio\.com$|firebasedatabase\.app$/.test(u.hostname)) return;
+  /* Les pages et fichiers des AUTRES environnements (sous-dossiers de la racine) ne passent jamais par ce service worker : réseau normal */
+  if (u.origin === location.origin && AUTRES_ENVIRONNEMENTS.some(function (d) { return u.pathname.indexOf(BASE + d) === 0; })) return;
 
   if (r.mode === 'navigate' || u.origin === location.origin) {
     /* Page de l'app : réseau d'abord (pour recevoir les mises à jour), cache si hors ligne.
