@@ -205,11 +205,11 @@ dialog.dact.plein[open]{max-height:none}
 #rl,#cdl,#adl,#ul{list-style:none;margin:0;padding:0}
 #rl li,#cdl li,#adl li,#ul li{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
 #cdl li.empty,#rl li.empty,#ul li.empty{display:block;text-align:center;color:var(--mute);cursor:default;border-style:dashed}
-/* liste des personnes : pastille ronde + mot (Actif / Retire), la ligne d'une personne retiree est grisee */
-.pastille{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap}
-.pastille::before{content:"\25CF";margin-right:5px}
-.pastille.ok{background:#DFF3E3;color:#14532D}
-.pastille.off{background:#E3E6EC;color:#3A4357}
+/* liste des personnes : pastille ronde + mot (Actif / Retire), la ligne d'une personne retiree est grisee. Classe « etatp » : « .pastille » existe deja (le point rouge de l'alerte d'accueil, alerte.css) et ecrasait ces regles */
+.etatp{display:inline-block;padding:4px 10px;border-radius:999px;font:700 13px Barlow,system-ui,sans-serif;white-space:nowrap}
+.etatp::before{content:"\25CF";margin-right:5px}
+.etatp.ok{background:#DFF3E3;color:#14532D}
+.etatp.off{background:#E3E6EC;color:#3A4357}
 #ul li.ret{background:transparent;opacity:.75}#ul li.ret b{font-weight:600;color:var(--mute)}
 #cdl li,#adl li{cursor:default}
 .rfl{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px;padding-top:8px;border-top:1px solid var(--line)}
@@ -2040,7 +2040,7 @@ var Proprietaire = (function () {
    Ce n'est pas une preuve de securite : une date enregistree dit seulement qu'une connexion a ete notee. */
 var KCNX = 'scanpocket_cnx_v1' + SFX;
 var Connexions = (function () {
-  var enCours = false, tente = {};   /* tente : un seul essai par code et par jour dans cette session (pas de rafale de requetes refusees) */
+  var enCours = false, tente = {}, dernier = null;   /* dernier = resultat du dernier essai de cette session { ok, http } (affiche dans « Mon compte » pour verifier sans la console) */   /* tente : un seul essai par code et par jour dans cette session (pas de rafale de requetes refusees) */
   var SV = { '.sv': 'timestamp' };
   function jour() { var d = new Date(), p = function (n) { return ('0' + n).slice(-2); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
   return {
@@ -2057,7 +2057,15 @@ var Connexions = (function () {
         if (!f) return Donnees.ecrire('PUT', { premiere: SV, derniere: SV }, chemin);                                  /* premiere fois : les deux ensemble */
         if (typeof f.derniere !== 'number' || Date.now() - f.derniere > 864e5) return Donnees.ecrire('PUT', SV, chemin + '/derniere');   /* derniere de plus d'un jour : seule `derniere` change */
         return null;
-      }).then(function () { sv(KCNX, { code: c, jour: j }); return true; }, function () { return false; }).then(function (r) { enCours = false; return r; });
+      }).then(function () { sv(KCNX, { code: c, jour: j }); dernier = { ok: true }; return true; }, function (e) { dernier = { ok: false, http: e && e.message }; return false; }).then(function (r) { enCours = false; return r; });
+    },
+    /* une ligne pour « Mon compte » : la connexion du jour est-elle enregistree ? sinon pourquoi (code HTTP) ; '' hors connexion */
+    resumeCompte: function () {
+      var c = auteurCourant(); if (!c) return '';
+      if (dernier && !dernier.ok) return 'non (' + causeHttp(dernier.http) + ') ; nouvel essai a la prochaine connexion';
+      var g = ld(KCNX, null);
+      if (g && g.code === c && g.jour === jour()) return 'oui, aujourd\'hui';
+      return dernier ? 'oui' : 'pas encore essayee dans cette session';
     }
   };
 })();
@@ -3893,13 +3901,14 @@ function causeHttp(http) {
 }
 /* « Retrait impossible a l'etape 2/3 (annuaire) : HTTP 403, les regles refusent. <suite> » (fonction pure) */
 function messageEtapeUtilisateur(action, n, total, nom, http, suite) { return action + " impossible à l'étape " + n + '/' + total + ' (' + nom + ') : ' + causeHttp(http) + '.' + (suite ? ' ' + suite : ''); }
-/* « 18/10/2026 à 14:05 » (heure locale de l'appareil) (fonction pure) */
-function dateHeureFr(ms) { var d = new Date(ms), p = function (n) { return ('0' + n).slice(-2); }; return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' à ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
-/* texte de la FICHE d'une personne (jamais dans la liste) : lu = le noeud connexions a pu etre lu ; c = { premiere, derniere } ou rien. Libelle neutre : ce n'est pas une preuve de securite (fonction pure) */
-function texteConnexion(lu, c) {
-  if (!lu) return 'Connexions : information indisponible pour le moment.';
-  if (!c || typeof c.derniere !== 'number') return 'Jamais connecté';
-  return 'Première connexion enregistrée le ' + dateHeureFr(typeof c.premiere === 'number' ? c.premiere : c.derniere) + ' · dernière connexion enregistrée le ' + dateHeureFr(c.derniere);
+/* « 18/10/2026 12:13 » (heure locale de l'appareil) (fonction pure) */
+function dateHeureCourte(ms) { var d = new Date(ms), p = function (n) { return ('0' + n).slice(-2); }; return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+/* les DEUX champs en lecture seule de la FICHE d'une personne (jamais dans la liste) : « Premiere connexion » et « Derniere connexion » ; lu = le noeud connexions a pu etre lu ; c = { premiere, derniere } ou rien.
+   Jamais connecte : « Jamais connecté » dans le premier champ, le second vide ; noeud illisible : « information indisponible » (jamais un faux « Jamais connecté »). Ce n'est pas une preuve de securite (fonction pure) */
+function champsConnexion(lu, c) {
+  if (!lu) return { premiere: 'information indisponible', derniere: 'information indisponible' };
+  if (!c || typeof c.derniere !== 'number') return { premiere: 'Jamais connecté', derniere: '' };
+  return { premiere: dateHeureCourte(typeof c.premiere === 'number' ? c.premiere : c.derniere), derniere: dateHeureCourte(c.derniere) };
 }
 var Utilisateurs = (function () {
   var data = {}, annu = {}, cnx = {}, cnxLu = false; /* personnes (cle = code), annuaire brut { code: { alias, etat } } et connexions { code: { premiere, derniere } } lus sur le serveur ; cnxLu faux = noeud illisible (regles pas a jour) */
@@ -3937,7 +3946,7 @@ var Utilisateurs = (function () {
         .then(function (a) { data = a[0] || {}; annu = a[1] || {}; cnxLu = a[2].ok; cnx = (a[2].ok && a[2].v) || {}; return true; }).catch(function () { return false; });
     },
     /* derniere connexion enregistree d'une personne (fiche) : le texte a afficher */
-    texteConnexion: function (code) { return texteConnexion(cnxLu, cnx[code]); },
+    champsConnexion: function (code) { return champsConnexion(cnxLu, cnx[code]); },
     /* ajoute ou modifie une personne : p = { code, cle, nom, roles, nouvelle, alias, reactiver } ; renvoie { ok, message, code, soi }
        nouvelle : relit personnes et annuaire, refuse un code pris ou anonymise (reponse { propose } = code libre suivant), reconnait l'adresse qui a deja une fiche
        (retiree : reponse { retire: { code, alias } } pour que l'ecran demande confirmation, puis `reactiver` ; active avec le meme code : reprise d'une creation interrompue) ;
@@ -4482,13 +4491,14 @@ function htmlCompte() {
     '<div class="row"><button class="btn" id="rlj" type="button">Recharger la copie locale du journal</button></div>' +
     '<div class="row"><button class="btn danger" id="lo" type="button">Se déconnecter</button><button class="btn cancel" id="sx" type="button">Fermer</button></div>';
 }
-function texteCompte(auth, roles, version, etat, horsLigne) {
+function texteCompte(auth, roles, version, etat, horsLigne, connexion) {
   var hh = function (t) { return new Date(t).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }); };
   return 'Compte : ' + emailDuCompte() +
     '\nRôles : ' + (roles && roles.length ? roles.map(libelleRole).join(', ') : 'aucun') +
     '\nVersion : ' + version +
     '\nSynchro : ' + (horsLigne ? 'hors ligne' : (etat.echec ? 'en échec' : (etat.dernierOk ? 'dernière réussie à ' + hh(etat.dernierOk) : 'en attente'))) +
     '\nModifications en attente d\'envoi : ' + (etat.enAttente || 0) +
+    (connexion ? '\nDernière connexion enregistrée : ' + connexion : '') +
     (etat.refusees ? '\nModifications refusées : ' + etat.refusees +
       '\n' + etat.refusees + ' modification(s) refusée(s) par le serveur (droits : auteur différent du code de ta fiche, ou fiche sans code). Elles ne sont plus renvoyées. Pour les supprimer : « Recharger la copie locale du journal ».' : '');
 }
@@ -5373,7 +5383,7 @@ function htmlUtilisateursListe(rows, moiCode, filtre, etat, lecture, orphelins) 
     var retire = x.etat === 'retire';
     /* pastille + MOT (jamais la couleur seule) : vert « Actif », gris « Retiré » (ligne grisee) ; aucune information de connexion dans la liste (elle est dans la fiche) */
     return '<li data-u="' + esc(x.k) + '"' + (retire ? ' class="ret"' : '') + '><div class="info"><b>' + esc(x.name || x.code) + (x.k === moiCode ? ' (toi)' : '') + '</b><small>' + esc(x.code + ' · ' + emailDeCle(x.cle)) + '</small></div>' +
-      '<div class="chips">' + (x.roles.length ? x.roles.map(function (r) { return '<span class="chip">' + esc(libelleRole(r)) + '</span>'; }).join('') : '<span class="chip">Aucun rôle</span>') + '<span class="pastille ' + (retire ? 'off' : 'ok') + '">' + (retire ? 'Retiré' : 'Actif') + '</span></div></li>';
+      '<div class="chips">' + (x.roles.length ? x.roles.map(function (r) { return '<span class="chip">' + esc(libelleRole(r)) + '</span>'; }).join('') : '<span class="chip">Aucun rôle</span>') + '<span class="etatp ' + (retire ? 'off' : 'ok') + '">' + (retire ? 'Retiré' : 'Actif') + '</span></div></li>';
   }).join('') : '<li class="empty">' + (lecture ? (filtre ? 'Aucune personne ne correspond.' : 'Aucune personne.') : 'Chargement impossible (droits Admin ou SecurityOfficer requis).') + '</li>';
   return (etat ? '<p class="hint" id="ustat" style="margin:0 0 8px;font-weight:600">' + esc(etat) + '</p>' : '') +
     '<input id="us" type="search" value="' + esc(filtre) + '" placeholder="Rechercher une personne, un e-mail, un rôle" aria-label="Rechercher une personne" style="margin-bottom:8px">' +
@@ -5407,8 +5417,9 @@ function htmlUtilisateurFiche(f) {
     '<label class="fl"><span class="flab">' + (f.nouvelle ? 'Code (proposé, modifiable)' : 'Code') + '</span><input id="udc" autocomplete="off" autocapitalize="off" spellcheck="false"' + (f.nouvelle ? '' : ' readonly') + ' value="' + esc(f.code) + '"></label>' +
     (f.nouvelle ? '<p class="hint" id="udcah" style="margin:-4px 0 8px">Mis en minuscules, puis gardé tel quel et jamais réattribué. Seulement : lettres a-z, chiffres 0-9 et les signes @ , _ + - ; de 1 à ' + CODE_LONGUEUR_MAX + ' caractères.</p>' : '') +
     '<label class="fl"><span class="flab">Alias (nom affiché)</span><input id="uda" maxlength="40" autocomplete="off" value="' + esc(f.alias) + '"' + (f.droits.verrouillee ? ' disabled' : '') + '></label>' +
-    (f.nouvelle ? '' : '<p class="hint" id="udcx" style="margin:-2px 0 8px">' + esc(f.connexion || '') + '</p>') +
-    '<p class="hint" id="udh" style="margin:10px 0 6px">' + esc(f.aide) + '</p><div id="udr" style="margin-bottom:10px">' + cases + '</div>' +
+    (f.nouvelle ? '' : '<div class="g2"><label class="fl"><span class="flab">Première connexion</span><input id="udcp" readonly aria-readonly="true" value="' + esc((f.connexion || {}).premiere || '') + '"></label>' +
+      '<label class="fl"><span class="flab">Dernière connexion</span><input id="udcd" readonly aria-readonly="true" value="' + esc((f.connexion || {}).derniere || '') + '"></label></div>') +
+    '<p class="hint" id="udh" style="margin:10px 0 6px">' + esc(f.aide) + '</p><div id="udr" style="margin:12px 0 10px">' + cases + '</div>' +
     (f.nouvelle || !f.droits.peutRetirer ? '' : (f.etat === 'retire' ? '<button type="button" class="btn" id="udre">Réactiver</button> <button type="button" class="btn danger" id="udrt">Retrait à terminer</button>' :'<button type="button" class="btn danger" id="udrm">Retirer l\'accès (réversible)</button>') + (f.droits.peutAnonymiser ? ' <button type="button" class="btn danger" id="udan">Supprimer cette personne</button>' : ''));
 }
 function htmlUtilisateurPied(nouvelle, verrouillee) { return '<div class="row"><button type="button" class="btn cancel" id="udx">Annuler</button>' + (verrouillee ? '' : '<button type="button" class="btn pri" id="udv">' + (nouvelle ? 'Ajouter' : 'Enregistrer') + '</button>') + '</div>'; }
@@ -7139,7 +7150,7 @@ function ouvrirFichePersonne(code) {
   if (code) {
     var i = infoUtilisateur(Utilisateurs.donnees()[code], code), dr = droitsFiche(code, i.roles, moi, mesRoles);
     var ab = Utilisateurs.annuaireBrut()[code], connu = ab && typeof ab.alias === 'string' ? ab.alias : undefined; /* alias lu dans annuaire/<code> par l'ecran lui-meme, sans attendre la synchro */
-    e.fiche = { code: code, cle: i.cle, nouvelle: false, email: emailDeCle(i.cle), nom: i.name, etat: i.etat, connexion: Utilisateurs.texteConnexion(code), aliasActuel: connu, alias: connu !== undefined ? connu : '', roles: i.roles, droits: dr,
+    e.fiche = { code: code, cle: i.cle, nouvelle: false, email: emailDeCle(i.cle), nom: i.name, etat: i.etat, connexion: Utilisateurs.champsConnexion(code), aliasActuel: connu, alias: connu !== undefined ? connu : '', roles: i.roles, droits: dr,
       aide: dr.verrouillee ? 'Réservé aux Admin : tu ne peux pas modifier cette personne.' : (dr.soi ? (dr.rolesGeles ? "C'est ton compte : tu ne peux ni te retirer ni modifier tes rôles." : "C'est ton compte : tu ne peux pas te retirer ni retirer ton propre rôle Admin.") : '') +
         (i.etat === 'retire' ? (dr.soi ? ' ' : '') + 'Accès retiré : cette personne ne peut plus se connecter. Tu peux la réactiver. Si un retrait a été interrompu, appuie sur « Retrait à terminer » (refait l\'annuaire et le pointeur d\'accès, sans rien réactiver).' : '') };
   } else {
@@ -8096,7 +8107,7 @@ function brancherChampsDate() {
   document.addEventListener('change', function (ev) { if (ev.target.getAttribute && ev.target.hasAttribute('data-calsel')) { ev.stopPropagation(); choisirDateCalendrier(ev.target); } }, true);
 }
 /* Coquille de l'application : choisit l'ecran selon l'etat d'acces (etatAcces), tient la synchro periodique et la mise en veille */
-var VERSION = '1.0.5';
+var VERSION = '1.0.6';
 
 /* accueil : scanner, blocs « A traiter » / valeur / taches (selon le role), liste des pieces, barre du bas */
 function htmlAccueil(auth, roles) {
@@ -8150,7 +8161,7 @@ function ouvrirCompte() {
 }
 function majCompte() {
   var e = $('acc'); if (!e || !Session.courante()) return;
-  e.textContent = texteCompte(Session.courante(), Roles.liste(), VERSION, Donnees.etat(), !navigator.onLine);
+  e.textContent = texteCompte(Session.courante(), Roles.liste(), VERSION, Donnees.etat(), !navigator.onLine, Connexions.resumeCompte());
 }
 function afficherAppli() {
   var racine = $('app'), auth = Session.courante(), roles = Roles.liste(), etat = etatAcces(auth, roles);
