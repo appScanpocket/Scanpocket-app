@@ -288,11 +288,26 @@ header #sync{flex:none}
 .bl-cache{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 .bl-conseil{margin:0 0 8px}
 .bl-actions{flex-wrap:wrap;margin-top:4px}.bl-actions .btn{flex:1 1 200px}
-.bl-etat{font-weight:700;margin:10px 0;min-height:1.4em}.bl-etat.bl-err{color:var(--bad)}
+.bl-etatw{display:flex;align-items:center;gap:10px;margin:10px 0}.bl-etatw .bl-etat{margin:0;flex:1 1 auto}
+.bl-scan{position:relative;flex:none;width:64px;height:40px;overflow:hidden;border-radius:6px;background:#fff;border:1px solid var(--line)}.bl-scan[hidden]{display:none}
+.bl-scan svg{display:block;width:100%;height:100%}
+.bl-scan i{position:absolute;left:0;top:0;width:3px;height:100%;background:#FFC300;box-shadow:0 0 6px 2px rgba(255,195,0,.7);will-change:transform;animation:blscan 1s ease-in-out infinite alternate}
+@keyframes blscan{from{transform:translateX(0)}to{transform:translateX(60px)}}
+@media (prefers-reduced-motion:reduce){.bl-scan{display:none}}
+.bl-etat{font-weight:700;min-height:1.4em}.bl-etat.bl-err{color:var(--bad)}
 .bl-rouge{color:var(--bad);font-weight:700}
 .bl-version{margin:16px 0 0;text-align:center;font-size:12px}
-.bl-vig{width:150px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:4px;margin:6px 0;cursor:zoom-in}.bl-vig[hidden]{display:none}
-.bl-vig .hint{margin:0 0 4px;font-size:12px}.bl-vig canvas{display:block;width:100%;height:auto;max-height:220px;border:1px solid var(--line);background:#fff}
+.bl-vig{margin:6px 0}.bl-vig[hidden]{display:none}
+.bl-phinfo{margin:0 0 6px}.bl-vigs{display:flex;flex-wrap:wrap;gap:8px}
+.bl-vgn{width:150px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:4px;cursor:zoom-in;display:flex;flex-direction:column;gap:4px}
+.bl-vgn canvas{display:block;width:100%;height:auto;max-height:200px;border:1px solid var(--line);background:#fff}.bl-vgn small{display:block}
+.bl-vgb{display:flex;flex-direction:column;gap:4px}.bl-vgb .btn{min-height:44px;padding:4px 8px;font-size:14px;width:100%}
+.bl-phact{flex-wrap:wrap;margin-top:8px}.bl-phact .btn{flex:1 1 150px}
+.bl-sep{margin:10px 0 2px;padding:2px 10px;font:700 12px Barlow,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);border-top:2px dashed var(--line)}
+.bl-alertes{margin:8px 0;padding:8px 10px 8px 28px;border:2px solid #F97316;border-radius:10px;background:color-mix(in srgb,#F97316 10%,var(--card));font-weight:600}
+.bl-etiq{display:inline-block;padding:0 6px;border-radius:6px;background:var(--line);color:var(--ink);font-style:normal}.bl-dbl{background:#F97316;color:#111}
+.bl-apercu{margin:8px 0;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,#36a 10%,var(--card));font-weight:600}
+.bl-ajout{display:flex;flex-direction:column;gap:8px}.bl-ajout[hidden]{display:none}
 .bl-sw{display:flex;align-items:center;gap:10px;position:relative;min-height:44px;margin:6px 0;font-weight:600;cursor:pointer}
 .bl-sw input{position:absolute;left:0;top:0;width:100%;height:100%;min-height:44px;margin:0;opacity:0;cursor:pointer}
 .bl-sw-i{flex:none;position:relative;width:44px;height:26px;border-radius:13px;background:var(--line)}
@@ -5364,10 +5379,16 @@ function htmlBlCorps(prix) {
   return '<p class="hint bl-conseil"><b>Avant la photo :</b> bon posé à plat, bonne lumière (sans reflet), tout le tableau dans le cadre.</p>' +
     '<div class="row bl-actions"><button type="button" class="btn pri" id="blphoto">Photographier le BL</button><button type="button" class="btn" id="blfichier">Choisir un fichier</button></div>' +
     '<input type="file" id="blinp1" class="bl-cache" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true"><input type="file" id="blinp2" class="bl-cache" accept="image/*,.pdf,application/pdf" tabindex="-1" aria-hidden="true">' +
-    '<p class="bl-etat" id="bletat" role="status" aria-live="polite">Chargement du moteur de lecture…</p>' +
-    '<div class="bl-vig" id="blvig" hidden><div class="hint">Document lu · toucher pour agrandir</div><div id="blvigc"></div></div>' +
+    '<div class="bl-etatw">' + htmlBlScan() + '<p class="bl-etat" id="bletat" role="status" aria-live="polite">Chargement du moteur de lecture…</p></div>' +
+    '<div class="bl-vig" id="blvig" hidden><div id="blvigc"></div></div>' +
     '<label class="bl-sw"><input type="checkbox" id="bldet"><span class="bl-sw-i" aria-hidden="true"></span><span>Afficher les détails (' + (prix ? 'PU, remise, montant, confiance' : 'confiance') + ')</span></label>' +
     '<div id="blsortie" class="bl-sortie"></div><p class="hint bl-version" id="blver"></p>';
+}
+/* petit code-barres (code 128 stylise) balaye par un filet jaune, pendant l'analyse : animation CSS (transform seulement), absente si l'utilisateur a demande moins de mouvement */
+function htmlBlScan() {
+  var barres = [[2, 2], [6, 1], [9, 3], [14, 1], [17, 2], [21, 1], [24, 3], [29, 2], [33, 1], [36, 2], [40, 3], [45, 1], [48, 2], [52, 1], [55, 3], [60, 2]];
+  return '<span class="bl-scan" id="blscan" hidden aria-hidden="true"><svg viewBox="0 0 64 40" preserveAspectRatio="none" focusable="false">' +
+    barres.map(function (b) { return '<rect x="' + b[0] + '" y="4" width="' + b[1] + '" height="32" fill="#14213D"/>'; }).join('') + '</svg><i></i></span>';
 }
 function htmlBlPied() { return '<div class="row"><button type="button" class="btn cancel" id="blx">Fermer</button></div>'; }
 /* agrandissement du document lu (fenetre a part, au-dessus de l'ecran) */
@@ -5409,7 +5430,7 @@ function htmlBlControle(c) {
 function htmlBlLigne(l, prix) {
   var q = l.qtyTxt + (l.qtyEgal != null ? ' = ' + l.qtyEgal : '');
   var alerte = l.alerte ? '<span class="bl-v bl-' + l.alerte.etat + ' bl-alerte" title="' + esc(l.alerte.titre) + '" aria-label="' + esc(l.alerte.titre) + '"></span>' : '';
-  var lu = '<div class="bl-lu"><span class="bl-c bl-c-ref" data-l="Réf./EAN">' + esc(l.ref) + '</span><span class="bl-c bl-c-des" data-l="Désignation">' + esc(l.desig) + (l.note ? '<br><small>' + esc(l.note) + '</small>' : '') + '</span>' +
+  var lu = '<div class="bl-lu"><span class="bl-c bl-c-ref" data-l="Réf./EAN">' + esc(l.ref) + '</span><span class="bl-c bl-c-des" data-l="Désignation">' + esc(l.desig) + (l.note ? '<br><small>' + esc(l.note) + '</small>' : '') + (l.manuel ? ' <small class="bl-etiq">ajoutée à la main</small>' : '') + (l.doublon ? ' <small class="bl-etiq bl-dbl">doublon probable</small>' : '') + '</span>' +
     '<span class="bl-c bl-c-qte n" data-l="Qté">' + alerte + esc(q) + '</span>';
   if (prix) {
     lu += '<span class="bl-c bl-det bl-c-pu n" data-l="PU">' + esc(l.puTxt) + '</span><span class="bl-c bl-det bl-c-rem n" data-l="Remise">' + esc(l.remiseTxt) + '</span><span class="bl-c bl-det bl-c-mt n" data-l="Montant">' + esc(l.montantTxt) + '</span>' +
@@ -5418,11 +5439,19 @@ function htmlBlLigne(l, prix) {
   if (l.ign) return '<div class="bl-art bl-ignoree" data-r="' + l.r + '">' + lu + '<span class="bl-c bl-c-ign" data-l="Article">ligne ignorée (transport, remise, total…)</span></div></div>';
   lu += '<span class="bl-c bl-c-art" data-l="Article proposé (stock)"><span class="bl-artz" title="' + esc(l.artTitre) + '">' + esc(l.artTxt) + '</span></span>' +
     '<span class="bl-c bl-det bl-c-conf n" data-l="Confiance">' + l.conf + ' %</span><span class="bl-c bl-c-cls" data-l="Classe">' + esc(l.classe) + '</span></div>';
-  var mod = '<div class="bl-mod" title="Mes adaptations"><span class="bl-c bl-m-ref" data-l="Référence"><input class="bl-refm" type="text" data-act="ref" value="' + esc(l.ref) + '" aria-label="Référence modifiée" autocomplete="off"></span>' +
+  var mod = '<div class="bl-mod" title="Mes adaptations"><span class="bl-c bl-m-ref" data-l="Référence"><input class="bl-refm" type="text" data-act="ref" value="' + esc(l.refVal) + '" aria-label="Référence modifiée" autocomplete="off"></span>' +
     '<span class="bl-c bl-m-rech" data-l="Recherche d\'article"><input class="bl-rq" type="text" value="' + esc(l.rechVal) + '" aria-label="Texte à rechercher" enterkeyhint="search" autocomplete="off"><span class="bl-res"></span></span>' +
     '<span class="bl-c bl-m-qte n" data-l="Quantité"><input class="bl-qte" type="number" inputmode="decimal" min="0" step="any" data-act="qte" value="' + esc(l.qteVal) + '" aria-label="Quantité"></span>' +
     '<span class="bl-c bl-m-ic" data-l="Décision"><span class="bl-barre">' + BL_BARRE.map(htmlBlIcone).join('') + '</span><span class="bl-badge" hidden>référence retenue</span></span></div>';
-  return '<div class="bl-art ' + l.cls + '" data-r="' + l.r + '">' + lu + mod + '</div>';
+  return (l.sep ? '<div class="bl-sep">photo ' + l.sep + '</div>' : '') + '<div class="bl-art ' + l.cls + '" data-r="' + l.r + '">' + lu + (l.apercu ? '' : mod) + '</div>';
+}
+/* barre des photos du bon : vignettes (les canvas sont poses par l'ecran dans les <span data-cv>), Refaire / Retirer, puis Ajouter / Terminer / Tout recommencer */
+function htmlBlPhotos(m) {
+  var b = function (act, texte, cls, i) { return '<button type="button" class="btn' + (cls ? ' ' + cls : '') + '" data-act="' + act + '"' + (i != null ? ' data-i="' + i + '"' : '') + '>' + texte + '</button>'; };
+  return '<p class="hint bl-phinfo">' + esc(m.info) + '</p><div class="bl-vigs">' + m.photos.map(function (p) {
+    return '<div class="bl-vgn" data-zoom="' + p.i + '" title="Toucher pour agrandir"><span data-cv="' + p.i + '"></span><b>Photo ' + (p.i + 1) + '</b>' + (p.etat ? '<small class="bl-rouge">' + esc(p.etat) + '</small>' : '') +
+      (m.modif ? '<span class="bl-vgb">' + b('refaire', 'Refaire', '', p.i) + (p.i > 0 ? b('retirer', 'Retirer', '', p.i) : '') + '</span>' : '') + '</div>';
+  }).join('') + '</div><div class="row bl-phact">' + (m.ajouter ? b('ajoutphoto', 'Ajouter une photo', 'pri') + b('ajoutfichier', 'Ajouter un fichier', '') : '') + (m.terminer ? b('terminer', 'Terminer', 'pri') : '') + (m.recommencer ? b('recommencer', 'Tout recommencer', 'danger') : '') + '</div>';
 }
 function htmlBlEnTete(prix) {
   return '<div class="bl-th"><span>Réf./EAN</span><span>Désignation</span><span class="n">Qté</span>' + (prix ? '<span class="bl-det n">PU</span><span class="bl-det n">Remise</span><span class="bl-det n">Montant</span><span class="bl-det">Contrôle ligne</span>' : '') +
@@ -5432,11 +5461,18 @@ function htmlBlPage(m) {
   var h = '<section class="bl-page" data-p="' + m.i + '"><p class="hint bl-info">' + esc(m.info) + '</p>';
   if (m.verdict) return h + '<p class="bl-rouge bl-verdict" role="alert">' + esc(m.verdict) + '</p><div class="row"><button type="button" class="btn pri" data-act="diag">Ouvrir le diagnostic</button></div>' + htmlBlDiag(m) + htmlBlIdentification(m) + '</section>';
   h += htmlBlIdentification(m);
+  if (m.alertes && m.alertes.length) h += '<ul class="bl-alertes" role="alert">' + m.alertes.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul>';
   h += '<p class="hint bl-nb"><b>' + m.nbDetail + '</b> lignes détail : ' + esc(m.repartition) + '</p>';
   h += '<div class="bl-bloc"><div class="bl-grid' + (m.prix ? ' bl-prix' : '') + '">' + htmlBlEnTete(m.prix) + m.lignes.map(function (l) { return htmlBlLigne(l, m.prix); }).join('') + '</div>';
-  h += '<div class="bl-resume" data-resume>' + esc(m.resume) + '</div>';
-  h += '<details class="bl-alias"><summary>Références retenues (session)</summary><div data-alias></div><button type="button" class="btn" data-act="viderAlias">Vider</button></details>';
-  h += '<div class="row bl-valider"><button type="button" class="btn" data-act="valider">Simulation réception</button><button type="button" class="btn pri" data-act="validerfinal">Valider</button></div><div class="bl-cadre bl-final" data-final hidden></div></div>';
+  if (m.apercu) h += '<p class="bl-apercu">Propositions provisoires : la reconnaissance définitive des articles et les décisions se font à « Terminer ».</p></div>';
+  else {
+    h += '<div class="bl-resume" data-resume>' + esc(m.resume) + '</div>';
+    h += '<div class="row"><button type="button" class="btn" data-act="ajoutligne">Ajouter une ligne</button></div>' +
+      '<div class="bl-cadre bl-ajout" hidden><b>Ligne ajoutée à la main</b><input class="bl-aj-ref" type="text" placeholder="Référence" aria-label="Référence" autocomplete="off"><input class="bl-aj-des" type="text" placeholder="Désignation" aria-label="Désignation" autocomplete="off"><input class="bl-aj-qte" type="number" inputmode="decimal" min="0" step="any" placeholder="Quantité" aria-label="Quantité">' +
+      '<div class="row"><button type="button" class="btn pri" data-act="ajoutok">Ajouter</button><button type="button" class="btn" data-act="ajoutnon">Annuler</button></div></div>';
+    h += '<details class="bl-alias"><summary>Références retenues (session)</summary><div data-alias></div><button type="button" class="btn" data-act="viderAlias">Vider</button></details>';
+    h += '<div class="row bl-valider"><button type="button" class="btn" data-act="valider">Simulation réception</button><button type="button" class="btn pri" data-act="validerfinal">Valider</button></div><div class="bl-cadre bl-final" data-final hidden></div></div>';
+  }
   h += '<div data-ctl>' + htmlBlControle(m.ctl) + '</div>';
   if (m.texteLu) h += '<details class="bl-texte"><summary>Texte lu (lignes regroupées)</summary><pre>' + esc(m.texteLu) + '</pre></details>';
   return h + htmlBlDiag(m) + '</section>';
@@ -7924,7 +7960,7 @@ function lancerImportPhotos() {
 /* Ecran « Bon de livraison » (Labo, essai) : une photo ou un fichier (image, PDF) est lu SUR L'APPAREIL, le moteur propose des articles du stock, la personne decide ligne par ligne.
    LECTURE SEULE + SIMULATION : rien n'est ecrit dans la base, aucun alias stocke, aucun document conserve apres la fermeture de l'ecran, rien n'est envoye hors de l'appareil.
    Le moteur et les bibliotheques (EnvDev\bl\, reglages dans bl\reglages.js) ne sont charges qu'a l'ouverture de l'ecran, jamais au demarrage de l'application. */
-var BL = { R: null, M: null, promesse: null, stock: null, tess: null, pdfjs: null, worker: null, wPromesse: null, fichier: null, vigTmp: null, pages: [], occupe: false, jeton: 0, prix: false };
+var BL = { R: null, M: null, promesse: null, stock: null, tess: null, pdfjs: null, worker: null, wPromesse: null, photos: [], termine: false, mode: null, gabaritOk: false, vigTmp: null, pages: [], occupe: false, jeton: 0, prix: false };
 
 /* ---- moteur et bibliotheques, a la demande ---- */
 function chargerMoteurBl() {
@@ -8005,11 +8041,15 @@ function libererBl() {
   var a = $('blagr'); if (a && a.open) a.close();
 }
 function etatBl(texte, erreur) { var e = $('bletat'); if (!e) return; e.textContent = texte; e.className = 'bl-etat' + (erreur ? ' bl-err' : ''); }
-function majBoutonsBl() { ['blphoto', 'blfichier'].forEach(function (id) { var b = $(id); if (b) b.disabled = BL.occupe; }); }
+function majBoutonsBl() {
+  ['blphoto', 'blfichier'].forEach(function (id) { var b = $(id); if (b) b.disabled = BL.occupe; });
+  [].forEach.call(document.querySelectorAll('#blvig button'), function (b) { b.disabled = BL.occupe; });
+}
 function libererCanvasBl(el) { if (!el) return; [].forEach.call(el.querySelectorAll('canvas'), function (c) { c.width = 0; c.height = 0; }); el.innerHTML = ''; }
 /* efface le resultat affiche et libere le document garde en memoire */
 function viderResultatBl() {
-  BL.pages = []; BL.fichier = null;
+  BL.photos.forEach(function (ph) { if (ph.vig) { ph.vig.width = 0; ph.vig.height = 0; ph.vig = null; } });
+  BL.pages = []; BL.photos = []; BL.termine = false; BL.mode = null; BL.gabaritOk = false;
   var s = $('blsortie'); if (s) s.innerHTML = '';
   libererCanvasBl($('blvigc')); if ($('blvig')) $('blvig').hidden = true;
   libererCanvasBl($('blagrc'));
@@ -8017,26 +8057,31 @@ function viderResultatBl() {
 }
 
 /* ---- lecture d'un fichier ---- */
-function lireBl(f) {
+/* animation (code-barres balaye) et etapes en mots pendant l'analyse ; la pause laisse la page se redessiner avant un calcul long */
+function scanBl(on) { var s = $('blscan'); if (s) s.hidden = !on; }
+function etapeBl(texte) { etatBl(texte); return new Promise(function (r) { setTimeout(r, 40); }); }
+function lireBl(f, mode) {
   if (!f || BL.occupe) return;
+  mode = mode || { type: 'nouveau' };
   var jeton = BL.jeton;
-  BL.occupe = true; majBoutonsBl();
-  etatBl('Lecture de ' + f.name + ' …');
+  BL.occupe = true; majBoutonsBl(); scanBl(true);
+  etatBl('Préparation de l\'image…');
   chargerMoteurBl().then(function () { return lireFichierBl(f, jeton); }).then(function (pages) {
     if (jeton !== BL.jeton) return;
-    afficherBl(pages, f);
+    return integrerBl(pages, f, mode, jeton);
   }).catch(function (e) {
     if (BL.vigTmp) { BL.vigTmp.width = 0; BL.vigTmp.height = 0; BL.vigTmp = null; }
     if (jeton !== BL.jeton) return;
     if (window.console) console.warn('Bon de livraison :', f.name, e);
     etatBl(e && e.moteur ? 'Moteur de lecture indisponible (fichiers non chargés) : vérifie le réseau puis réessaie.'
       : 'Fichier illisible : ' + f.name + ' (image ou PDF attendu).' + (BL.pages.length ? ' Le résultat précédent est conservé.' : ''), true);
-  }).then(function () { if (jeton === BL.jeton) { BL.occupe = false; majBoutonsBl(); } });
+  }).then(function () { if (jeton === BL.jeton) { BL.occupe = false; scanBl(false); majBoutonsBl(); } });
 }
 function lireFichierBl(f, jeton) {
   if (!f.size) return Promise.reject(new Error('fichier vide'));
   return f.slice(0, 5).arrayBuffer().then(function (b) {
     var pdf = String.fromCharCode.apply(null, new Uint8Array(b)) === '%PDF-' || /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    if (pdf) etatBl('Lecture du PDF…');
     return pdf ? pagesPdfBl(f, jeton) : pagesImageBl(f, jeton);
   });
 }
@@ -8056,6 +8101,7 @@ function pagesImageBl(f, jeton) {
       if (bmp.close) bmp.close();
       var r = BL.M.pre.nettoyer(cv); nettoye = r.canvas;
       var t1 = performance.now();
+      etatBl('Lecture du texte…');
       return ocrBl(nettoye, plan.e, jeton).then(function (items) {
         return [{ n: 1, mode: 'OCR ' + BL.R.LANGUES.join('+') + ' (x' + plan.e.toFixed(2) + ', nettoyé, redressé ' + r.angle.toFixed(2) + ' deg)', items: items, secondes: (performance.now() - t1) / 1000, prepa: (t1 - t0) / 1000, dim: { src: sw + ' x ' + sh, lu: plan.w2 + ' x ' + plan.h2, e: plan.e } }];
       });
@@ -8099,33 +8145,84 @@ function pagePdfBl(pdf, n, jeton) {
 }
 
 /* ---- affichage du resultat ---- */
-function afficherBl(pages, f) {
-  var lec = BL.M.lec, res = pages.map(function (p) {
-    var t = lec.analyser(p.items, BL.stock);
-    return { p: p, t: t, d: blDecisions(t.rows), prix: BL.prix && !!t.prix && !t.verdict, meta: { nbLu: t.totaux.nbLignes, pieces: t.totaux.pieces } };
-  });
+/* un fichier lu entre dans le bon : mode.type = nouveau (efface tout), ajout (photo suivante), refaire (remplace la photo mode.i) */
+function integrerBl(pages, f, mode, jeton) {
   var vig = BL.vigTmp; BL.vigTmp = null;
-  viderResultatBl(); /* une nouvelle lecture efface le resultat precedent */
-  BL.fichier = f; BL.pages = res;
-  dessinerBl();
-  if (vig) { $('blvigc').appendChild(vig); $('blvig').hidden = false; }
-  var total = pages.reduce(function (s, p) { return s + p.secondes + (p.prepa || 0); }, 0);
-  var lisibles = res.filter(function (r) { return !r.t.verdict; }).length;
-  if (lisibles) etatBl('Terminé : ' + f.name + ' (' + total.toFixed(1) + ' s). Vérifie chaque ligne.');
-  else etatBl(blMessageVerdict(res[0].t.verdict), true); /* rien d'exploitable : message d'alerte (le detail est sous l'etat) */
+  return etapeBl('Reconstruction du tableau…').then(function () { return etapeBl('Recherche des articles…'); }).then(function () {
+    if (jeton !== BL.jeton) { if (vig) { vig.width = 0; vig.height = 0; } return; }
+    integrerSuiteBl(pages, f, mode, vig);
+  });
 }
-function dessinerBl() {
+function integrerSuiteBl(pages, f, mode, vig) {
+  var pdf = !pages[0].dim, ph = { file: f, pdf: pdf, pages: pages, p: pages[0], vig: vig };
+  var libereVig = function () { if (vig) { vig.width = 0; vig.height = 0; } };
+  if (mode.type !== 'nouveau' && (pdf || !BL.photos.length)) { libereVig(); etatBl('Pour ajouter à un bon, utilisez une photo (image), pas un PDF.', true); return; }
+  if (mode.type === 'ajout' && BL.photos.length >= BL.R.MAX_PHOTOS) { libereVig(); etatBl('Maximum ' + BL.R.MAX_PHOTOS + ' photos par bon.', true); return; }
+  if (mode.type === 'nouveau') { viderResultatBl(); BL.photos = [ph]; } /* une nouvelle lecture efface le resultat precedent */
+  else if (mode.type === 'ajout') { BL.photos.push(ph); BL.termine = false; }
+  else { var ancien = BL.photos[mode.i]; if (ancien && ancien.vig) { ancien.vig.width = 0; ancien.vig.height = 0; } BL.photos[mode.i] = ph; BL.termine = false; }
+  reconstruireBl(mode.type !== 'nouveau');
+  var k = mode.type === 'ajout' ? BL.photos.length : (mode.i != null ? mode.i + 1 : 1);
+  var total = pages.reduce(function (s, p) { return s + p.secondes + (p.prepa || 0); }, 0), t = BL.pages[0].t;
+  if (t.verdict) etatBl(blMessageVerdict(t.verdict), true); /* rien d'exploitable : message d'alerte (le detail est sous l'etat) */
+  else etatBl(BL.photos.length > 1 ? 'Photo ' + k + ' lue (' + total.toFixed(1) + ' s). ' + BL.pages[0].t.rows.length + ' lignes au total. Ajoutez une photo ou terminez.' : 'Terminé : ' + f.name + ' (' + total.toFixed(1) + ' s). Vérifie chaque ligne.');
+}
+function pgDe(t, p, extra) { return Object.assign({ p: p, t: t, d: blDecisions(t.rows), prix: BL.prix && !!t.prix && !t.verdict, meta: { nbLu: t.totaux.nbLignes, pieces: t.totaux.pieces } }, extra || {}); }
+/* le resultat affiche : PDF = un bloc par page ; une photo = comme avant ; plusieurs photos = UN bon fusionne (apercu provisoire jusqu'a « Terminer ») */
+function reconstruireBl(garderId) {
+  var lec = BL.M.lec, ph = BL.photos, res;
+  var garde = {};
+  if (garderId) [].forEach.call(document.querySelectorAll('#blsortie .bl-gest input'), function (i) { garde[i.getAttribute('data-champ')] = i.value; });
+  if (ph[0].pdf) res = ph[0].pages.map(function (p) { return pgDe(lec.analyser(p.items, BL.stock), p); });
+  else if (ph.length === 1) res = [pgDe(lec.analyser(ph[0].p.items, BL.stock), ph[0].p)];
+  else {
+    var t1 = lec.lireTableau(ph[0].p.items), ts = [t1], diags = [];
+    ph.forEach(function (x, k) {
+      var tk = k ? lec.lireTableau(x.p.items, { gabarit: t1.gabarit }) : t1;
+      x.coupe = k ? tk.coupe || null : null; if (k) ts.push(tk);
+      diags.push('=== Photo ' + (k + 1) + ' ===\n' + blTexteDiagnostic({ p: x.p, t: tk }, BL.prix, lec.VERSION_LECTURE));
+    });
+    var provisoire = !BL.termine, stock = provisoire && !BL.R.RECO_PROVISOIRE ? lec.stockDepuisArticles([]) : BL.stock;
+    var t = lec.assemblerBon(ts, stock, { emetteur: BL.termine && garde.emetteur != null ? garde.emetteur : undefined });
+    var secs = ph.reduce(function (s, x) { return s + x.p.secondes; }, 0), prepa = ph.reduce(function (s, x) { return s + (x.p.prepa || 0); }, 0);
+    res = [pgDe(t, { n: 1, mode: ph.length + ' photos, un seul bon', items: [], secondes: secs, prepa: prepa, dim: null }, { apercu: provisoire, diagTexte: diags.join('\n\n') })];
+  }
+  BL.pages = res;
+  BL.gabaritOk = !ph[0].pdf && !!(ph.length === 1 ? res[0].t.gabarit : lec.lireTableau(ph[0].p.items).gabarit) && !res[0].t.verdict;
+  dessinerBl(garderId ? garde : null);
+  dessinerPhotosBl();
+}
+function dessinerPhotosBl() {
+  var ph = BL.photos, v = $('blvigc'); if (!v) return;
+  var pdf = ph.length && ph[0].pdf, fusion = ph.length > 1, t = BL.pages[0] && BL.pages[0].t;
+  var info = pdf ? 'Document lu · toucher pour agrandir'
+    : BL.termine ? 'Bon terminé (' + ph.length + ' photos) : décisions et contrôles ci-dessous.'
+    : !BL.gabaritOk ? 'Reprenez la photo 1 : c\'est elle qui donne l\'identité et les colonnes du bon.'
+    : fusion ? ph.length + ' photos lues. Propositions provisoires : la reconnaissance définitive se fait à « Terminer ».'
+    : 'Photo 1 lue. Si le bon continue, ajoutez la photo suivante (la même largeur de tableau) ; sinon c\'est déjà terminé.';
+  var modele = { info: info, modif: !pdf && !BL.termine, ajouter: !pdf && !BL.termine && BL.gabaritOk && ph.length < BL.R.MAX_PHOTOS, terminer: !pdf && !BL.termine && fusion, recommencer: !pdf && (ph.length > 1 || BL.termine),
+    photos: ph.map(function (x, i) { return { i: i, etat: x.coupe ? 'tableau coupé : reprenez la photo' : '' }; }) };
+  v.innerHTML = htmlBlPhotos(modele);
+  ph.forEach(function (x, i) { var c = v.querySelector('[data-cv="' + i + '"]'); if (c && x.vig) c.appendChild(x.vig); });
+  $('blvig').hidden = !ph.length; majBoutonsBl();
+  void t;
+}
+function dessinerBl(garde) {
   var s = $('blsortie'); if (!s) return;
   s.innerHTML = BL.pages.map(function (pg, i) { return htmlBlPage(modelePageBl(pg, i)); }).join('');
   s.classList.toggle('bl-avec-det', !!$('bldet').checked); majMiseEnPageBl();
-  BL.pages.forEach(function (pg, i) { var sec = s.querySelector('.bl-page[data-p="' + i + '"]'); if (sec && !pg.t.verdict) { majResumeBl(sec, pg); } });
+  BL.pages.forEach(function (pg, i) {
+    var sec = s.querySelector('.bl-page[data-p="' + i + '"]'); if (!sec || pg.t.verdict) return;
+    if (!pg.apercu) { majResumeBl(sec, pg); [].forEach.call(sec.querySelectorAll('.bl-art'), function (art) { var d = pg.d[Number(art.getAttribute('data-r'))]; if (d && !d.ign) majLigneBl(art, d); }); }
+    if (garde) [].forEach.call(sec.querySelectorAll('.bl-gest input'), function (inp) { var c = inp.getAttribute('data-champ'); if (garde[c] != null) inp.value = garde[c]; });
+  });
   majAliasBl();
 }
 function modelePageBl(pg, i) {
   var t = pg.t, p = pg.p, idf = t.identification || {}, prix = pg.prix;
   var champs = [['emetteur', 'Émetteur', idf.emetteur], ['numero', 'N° de bon de livraison', idf.numeros && idf.numeros.length ? idf.numeros.join(', ') : null], ['date', 'Date', idf.date], ['reference', 'Votre référence / commande', idf.reference_client],
     ['transporteur', 'Transporteur', idf.transporteur], ['colis', 'Colis', idf.colis], ['page', 'Page', idf.page]];
-  var m = { i: i, prix: prix, verdict: blMessageVerdict(t.verdict), diag: blTexteDiagnostic(pg, BL.prix, BL.M.lec.VERSION_LECTURE), ident: champs.map(function (c) { return { k: c[0], l: c[1], v: c[2] }; }),
+  var m = { i: i, prix: prix, verdict: blMessageVerdict(t.verdict), diag: pg.diagTexte || blTexteDiagnostic(pg, BL.prix, BL.M.lec.VERSION_LECTURE), apercu: !!pg.apercu, alertes: (t.alertes || []).map(function (a) { return a.texte; }), ident: champs.map(function (c) { return { k: c[0], l: c[1], v: c[2] }; }),
     info: 'Page ' + p.n + ' : ' + p.mode + ' · lecture ' + p.secondes.toFixed(2) + ' s' + (p.prepa != null ? ' (+ préparation de l\'image ' + p.prepa.toFixed(2) + ' s)' : '') + ' · ' + p.items.length + ' boîtes de texte' };
   if (t.verdict) return m;
   var ok = 0, ver = 0, non = 0, ign = 0;
@@ -8137,7 +8234,8 @@ function modelePageBl(pg, i) {
     var ctlTexte = c.etat === 'rouge' ? (c.attendu != null ? 'attendu ' + blFmt(c.attendu) + ', écart ' + blFmt(c.ecart) : (c.note || '')) : c.etat === 'orange' ? 'arrondi (écart ' + blFmt(c.ecart) + ')' : c.etat === 'vert' ? 'juste' : 'pas de contrôle';
     var l = { r: ri, ign: d.ign, cls: d.ign ? 'bl-ignoree' : pr.classe === 'reconnu' ? 'bl-reconnu' : pr.classe === 'a verifier' ? 'bl-averifier' : 'bl-nonreconnu',
       ref: r.ref, desig: r.desig, note: r.note, qtyTxt: r.qtyTxt, qtyEgal: r.qty != null && /x/i.test(r.qtyTxt) ? r.qty : null, alerte: t.prix ? blAlerteLigne(c, BL.prix) : null,
-      artTxt: d.artTxt, artTitre: d.artTitre, conf: pr ? pr.conf : 0, classe: pr ? pr.classe : '', qteVal: r.qty != null ? r.qty : '', rechVal: r.desig || r.ref || '' };
+      artTxt: d.artTxt, artTitre: d.artTitre, conf: pr ? pr.conf : 0, classe: pr ? pr.classe : '', qteVal: d.qte != null ? d.qte : '', refVal: d.ref == null ? '' : d.ref, rechVal: r.desig || r.ref || '',
+      sep: r.debutPhoto ? r.photo : 0, doublon: !!r.doublon, manuel: !!r.manuel, apercu: !!pg.apercu };
     if (prix) { l.puTxt = r.puTxt; l.remiseTxt = r.remiseTxt; l.montantTxt = r.montantTxt; l.ctl = { etat: c.etat || 'sans controle', texte: ctlTexte }; }
     return l;
   });
@@ -8189,7 +8287,7 @@ function contexteBl(el) {
 /* ---- evenements ---- */
 function changeBl(ev) {
   var t = ev.target;
-  if (t.id === 'blinp1' || t.id === 'blinp2') { var f = t.files && t.files[0]; t.value = ''; if (f) lireBl(f); return; }
+  if (t.id === 'blinp1' || t.id === 'blinp2') { var f = t.files && t.files[0], mode = BL.mode; t.value = ''; BL.mode = null; if (f) lireBl(f, mode); return; }
   if (t.id === 'bldet') { $('blsortie').classList.toggle('bl-avec-det', t.checked); majMiseEnPageBl(); }
 }
 /* tableau si la largeur le permet, sinon cartes : 700 px sans les details, 940 px avec les details de prix */
@@ -8212,12 +8310,18 @@ function toucheBl(ev) {
 }
 function clicBl(ev) {
   var t = ev.target;
-  if (t.closest('#blvig')) { ouvrirAgrBl(); return; }
-  var b = t.closest('button'); if (!b) return;
+  var b = t.closest('button');
+  if (!b && t.closest('#blvig')) { var z = t.closest('[data-zoom]'); ouvrirAgrBl(z ? Number(z.getAttribute('data-zoom')) : 0); return; }
+  if (!b) return;
   if (b.id === 'blx') { $('bldlg').close(); return; }
-  if (b.id === 'blphoto') { $('blinp1').click(); return; }
-  if (b.id === 'blfichier') { $('blinp2').click(); return; }
-  var act = b.getAttribute('data-act'), k = act ? contexteBl(b) : null; if (!k) return;
+  if (b.id === 'blphoto') { BL.mode = null; $('blinp1').click(); return; }
+  if (b.id === 'blfichier') { BL.mode = null; $('blinp2').click(); return; }
+  var act = b.getAttribute('data-act'), k = act ? contexteBl(b) : null;
+  if (act && b.closest('#blvig')) { actionPhotoBl(act, Number(b.getAttribute('data-i'))); return; }
+  if (!k) return;
+  if (act === 'ajoutligne') { k.sec.querySelector('.bl-ajout').hidden = false; k.sec.querySelector('.bl-aj-ref').focus(); return; }
+  if (act === 'ajoutnon') { k.sec.querySelector('.bl-ajout').hidden = true; return; }
+  if (act === 'ajoutok') { ajouterLigneBl(k); return; }
   if (act === 'diag') { var dg = k.sec.querySelector('.bl-diag'); dg.open = true; dg.scrollIntoView({ block: 'start' }); return; }
   if (act === 'copierdiag') { copierDiagBl(k.sec.querySelector('.bl-diag pre').textContent, k.sec.querySelector('.bl-copie')); return; }
   if (act === 'viderAlias') { BL.M.lec.ALIAS.clear(); majAliasBl(); return; }
@@ -8250,6 +8354,36 @@ function clicBl(ev) {
   else return;
   majLigneBl(k.art, x); majResumeBl(k.sec, k.pg);
 }
+/* barre des photos : ajouter, refaire, retirer, terminer, tout recommencer */
+function actionPhotoBl(act, i) {
+  if (act === 'ajoutphoto') { BL.mode = { type: 'ajout' }; $('blinp1').click(); }
+  else if (act === 'ajoutfichier') { BL.mode = { type: 'ajout' }; $('blinp2').click(); }
+  else if (act === 'refaire') { BL.mode = { type: 'refaire', i: i }; $('blinp1').click(); }
+  else if (act === 'retirer') { var x = BL.photos[i]; if (x && x.vig) { x.vig.width = 0; x.vig.height = 0; } BL.photos.splice(i, 1); BL.termine = false; reconstruireBl(true); etatBl('Photo retirée.'); }
+  else if (act === 'terminer') {
+    BL.occupe = true; majBoutonsBl(); scanBl(true); var jeton = BL.jeton;
+    etapeBl('Recherche des articles…').then(function () {
+      if (jeton !== BL.jeton) return;
+      BL.termine = true; reconstruireBl(true); etatBl('Terminé : reconnaissance définitive refaite sur toutes les lignes (les propositions ont pu changer).');
+    }).then(function () { if (jeton === BL.jeton) { BL.occupe = false; scanBl(false); majBoutonsBl(); } }, function () { BL.occupe = false; scanBl(false); majBoutonsBl(); });
+  }
+  else if (act === 'recommencer') {
+    confirmer('Effacer toutes les photos et le résultat, et recommencer ?', 'Tout recommencer', function () { viderResultatBl(); etatBl('Prêt. Photographiez le bon ou choisissez un fichier.'); });
+  }
+}
+/* « Ajouter une ligne » : ligne saisie a la main (aucun texte lu), l'article est cherche dans le stock comme pour une ligne lue */
+function ajouterLigneBl(k) {
+  var ref = k.sec.querySelector('.bl-aj-ref').value.trim(), des = k.sec.querySelector('.bl-aj-des').value.trim(), q = k.sec.querySelector('.bl-aj-qte').value;
+  if (!ref && !des) { toast('Écrivez une référence ou une désignation'); return; }
+  var qty = q === '' ? null : Number(q), row = { ref: ref, pos: '', desig: des, qtyTxt: q, unite: '', puTxt: '', remiseTxt: '', montantTxt: '', cmdTxt: '', reliqTxt: '', note: '', ligne: '', qty: qty, pu: null, remise: null, montant: null, manuel: true, statut: 'article' };
+  var idf = k.pg.t.identification, emet = (k.sec.querySelector('.bl-gest [data-champ="emetteur"]') || {}).value;
+  row.proposition = BL.M.lec.proposerLigne(row, BL.stock, emet != null ? emet : idf && idf.emetteur);
+  k.pg.t.rows.push(row);
+  var d = blDecisions([row])[0]; d.manuel = true; k.pg.d.push(d);
+  dessinerBl(valeursIdBl(k.sec)); dessinerPhotosBl();
+  var arts = document.querySelectorAll('#blsortie .bl-art'); if (arts.length) arts[arts.length - 1].scrollIntoView({ block: 'center' });
+}
+function valeursIdBl(sec) { var g = {}; [].forEach.call(sec.querySelectorAll('.bl-gest input'), function (i) { g[i.getAttribute('data-champ')] = i.value; }); return g; }
 /* « Copier le diagnostic » : presse-papiers (texte brut) ; sinon selection a la main */
 function copierDiagBl(texte, etat) {
   var dit = function (m) { etat.textContent = m; };
@@ -8291,8 +8425,8 @@ function validerBl(act, k) {
 }
 
 /* ---- agrandissement du document lu : dessine tout en canvas (aucun objet URL), libere a la fermeture ---- */
-function ouvrirAgrBl() {
-  if (!BL.fichier) return;
+function ouvrirAgrBl(i) {
+  if (!BL.photos[i || 0]) return;
   var d = $('blagr');
   if (!d) {
     d = document.createElement('dialog'); d.id = 'blagr'; d.innerHTML = htmlBlAgrandi(); document.body.appendChild(d);
@@ -8300,7 +8434,7 @@ function ouvrirAgrBl() {
     d.addEventListener('close', function () { libererCanvasBl($('blagrc')); });
   }
   libererCanvasBl($('blagrc')); d.showModal(); $('blagrc').scrollTop = 0;
-  var f = BL.fichier, cont = $('blagrc');
+  var f = BL.photos[i || 0].file, cont = $('blagrc'); /* une seule photo decodee, a la demande, liberee a la fermeture */
   rendreDocBl(f, cont, 2, 1800).catch(function () { cont.textContent = 'Agrandissement indisponible.'; });
 }
 function rendreDocBl(f, cont, echellePdf, largeurMax) {
@@ -8790,7 +8924,7 @@ function brancherChampsDate() {
   document.addEventListener('change', function (ev) { if (ev.target.getAttribute && ev.target.hasAttribute('data-calsel')) { ev.stopPropagation(); choisirDateCalendrier(ev.target); } }, true);
 }
 /* Coquille de l'application : choisit l'ecran selon l'etat d'acces (etatAcces), tient la synchro periodique et la mise en veille */
-var VERSION = '1.0.11';
+var VERSION = '1.0.12';
 
 /* accueil : scanner, blocs « A traiter » / valeur / taches (selon le role), liste des pieces, barre du bas */
 function htmlAccueil(auth, roles) {

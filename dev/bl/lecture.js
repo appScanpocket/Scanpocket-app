@@ -13,6 +13,8 @@
 //  5. emetteur de repli : au moins 3 lettres (comme le pilote 0.17).
 //  6. vitesse sur un gros stock : proposer() garde les deux meilleurs scores en un passage (plus de tri complet de tout le stock a chaque ligne) et scoreNom() decoupe le texte de la ligne une seule fois
 //     (mesure PC, 15 lignes : 50 000 articles 12 s -> 2,8 s ; 20 000 articles 1,6 s -> 1,2 s ; memes propositions) ; stock vide : plus de plantage (« non reconnu » sans piste).
+//  7. bon en PLUSIEURS PHOTOS : lireTableau(items, { gabarit }) (colonnes de la photo 1 en fractions de la largeur du tableau, aucun en-tete cherche, en-tete repete ignore, controle « tableau coupe »),
+//     res.gabarit, reconnaitre() separee de analyser(), assemblerBon() (fusion, totaux de la derniere photo, doublons signales, alertes manque / page / coupe / doublon).
 //  (L'arrondi de controleArith et RE_ADRESSE_CLIENT venaient deja du pilote a cette date ; le pilote 0.17 y ajoute t.incertain = tout « non reconnu » : NON reprise ici,
 //   car un BL lisible dont aucun article n'est dans le stock serait cache ; ici « trop incertaine » = quantites illisibles sur au moins la moitie des lignes.)
 
@@ -322,9 +324,32 @@ function cleanNum(txt) {
   return txt.split(/\s+/).map((w) => w.replace(/^[^0-9A-Za-z]+|[^0-9A-Za-z%]+$/g, '')).filter((w) => (/\d/.test(w) && /^[0-9OolI|S.,%x×-]+$/.test(w)) || /^[x×*]$/i.test(w)).join(' ');
 }
 
-export function lireTableau(itemsIn) {
+// --- photos suivantes d'un bon (copie appli) : colonnes de la photo 1 appliquees a la largeur du tableau de CETTE photo, aucun en-tete cherche ---
+const ligneCorps = (L) => L.cells.some((c) => estNombreSimple(c.t)) && L.cells.some((c) => /[A-Za-zÀ-ÿ]{3}/.test(c.t) || /\d{8,}/.test(c.t.replace(/\s/g, '')));
+function entetePourGabarit(lignes, H, gab) {
+  const corps = [];
+  for (let i = 0; i < lignes.length; i++) {
+    const sn = strip(lignes[i].texte).replace(/[^a-z0-9 %]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (corps.length && RE_FIN_TABLEAU.test(sn)) break;
+    if (ligneCorps(lignes[i])) corps.push(i);
+  }
+  if (!corps.length) return null;
+  // etendue du tableau : lignes qui ont presque toutes les colonnes (une ligne de texte libre ou de pied ne doit pas elargir le tableau)
+  const pleines = corps.filter((i) => lignes[i].cells.length >= Math.max(3, gab.cols.length - 1));
+  const cells = (pleines.length ? pleines : corps).flatMap((i) => lignes[i].cells);
+  const xmin = Math.min(...cells.map((c) => c.x0)), W = Math.max(1, Math.max(...cells.map((c) => c.x1)) - xmin);
+  const cols = gab.cols.map((c) => ({ type: c.type, x0: xmin + c.f0 * W, x1: xmin + c.f1 * W, cx: xmin + c.fc * W, texte: '(gabarit)', flou: true }));
+  const qty = cols.find((c) => c.type === 'qty'), des = cols.find((c) => c.type === 'desig');
+  // premiere ligne alignee sur les colonnes designation et quantite (saute le titre, l'adresse et l'en-tete repetes en haut d'une page suivante)
+  const estQte = (t) => estNombreSimple(t) || /^\d+\s*[x×*]\s*\d+([.,]\d+)?$/i.test(String(t).trim());
+  const debut = corps.find((i) => lignes[i].cells.some((c) => estQte(c.t) && Math.abs(c.cx - qty.cx) < Math.max(H * 3, qty.x1 - qty.x0))
+    && lignes[i].cells.some((c) => /[A-Za-zÀ-ÿ]{3}/.test(c.t) && Math.abs(c.x0 - des.x0) < Math.max(H * 3, (des.x1 - des.x0) / 2)));
+  return { index: (debut != null ? debut : corps[0]) - 1, cols, mode: 'gabarit', texte: '(colonnes de la photo 1)' };
+}
+export function lireTableau(itemsIn, opts) {
   const { lignes, angle, H } = grouperLignes(itemsIn);
-  const ent = trouverEntete(lignes, H);
+  const gab = opts && opts.gabarit;
+  const ent = gab ? entetePourGabarit(lignes, H, gab) : trouverEntete(lignes, H);
   const res = { angle, H, nbLignes: lignes.length, nbBoites: itemsIn.length, texteLignes: lignes.map((l) => l.texte), diag: { candidats: candidatsEntete(lignes), mode: ent ? ent.mode : null }, entete: null, colonnes: [], rows: [], totaux: { ht: null, tva: null, tvaTaux: null, ttc: null, pieces: null }, prix: false };
   // nombre de lignes indique sur le document (en-tete ou pied) : « nb lignes 4 », « nombre d'articles : 4 »...
   res.totaux.nbLignes = null;
@@ -334,12 +359,14 @@ export function lireTableau(itemsIn) {
     const m = /(?:^| )(?:nb ?(?:de )?lignes|nombre (?:de )?(?:lignes|articles)|nb ?articles|lignes|articles) (\d{1,4})$/.exec(sn0);
     if (m) { res.totaux.nbLignes = parseInt(m[1], 10); break; }
   }
-  if (!ent) return res;
+  if (!ent) { if (gab) res.coupe = 'aucune ligne de tableau'; return res; }
   res.entete = ent.texte || lignes[ent.index].texte;
   res.indexEntete = ent.index;
   res.colonnes = ent.cols.map((c) => c.type);
   res.prix = res.colonnes.includes('pu') || res.colonnes.includes('montant');
-  let finTab = false, last = null, lastCy = null;
+  let finTab = false, last = null, lastCy = null, xmin = Infinity, xmax = -Infinity;
+  const etendre = (L) => { for (const c of L.cells) { if (c.x0 < xmin) xmin = c.x0; if (c.x1 > xmax) xmax = c.x1; } };
+  if (!gab && ent.index >= 0) etendre(lignes[ent.index]);
   for (let i = ent.index + 1; i < lignes.length; i++) {
     const L = lignes[i];
     const sn = strip(L.texte).replace(/[^a-z0-9 %]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -377,7 +404,17 @@ export function lireTableau(itemsIn) {
     row.remise = row.remiseTxt ? num(fixNum(row.remiseTxt)) : null;
     row.montant = num(fixNum(row.montantTxt));
     res.rows.push(row);
+    etendre(L);
     last = row; lastCy = L.cy;
+  }
+  if (gab) { // controle « tableau coupe » : la colonne quantite ou designation du gabarit est vide sur cette photo
+    if (!res.rows.length) res.coupe = 'aucune ligne lue';
+    else if (!res.rows.some((r) => r.qtyTxt !== '')) res.coupe = 'colonne des quantites vide';
+    else if (!res.rows.some((r) => r.desig !== '')) res.coupe = 'colonne des designations vide';
+  } else if (xmax > xmin && ent.cols.some((c) => c.type === 'desig') && ent.cols.some((c) => c.type === 'qty')) {
+    // gabarit pour les photos suivantes : colonnes en fractions de la largeur du tableau
+    const W = xmax - xmin;
+    res.gabarit = { mode: ent.mode, cols: ent.cols.map((c) => ({ type: c.type, f0: (c.x0 - xmin) / W, f1: (c.x1 - xmin) / W, fc: (c.cx - xmin) / W })) };
   }
   return res;
 }
@@ -597,6 +634,13 @@ export function analyser(itemsIn, stock) {
     return t;
   }
   t.identification = extraireIdentification(t.indexEntete != null ? t.texteLignes.slice(0, t.indexEntete) : t.texteLignes);
+  reconnaitre(t, stock);
+  t.controle = controleArith(t);
+  return t;
+}
+// reconnaissance des articles sur les lignes de t (statut, proposition) ; emetteur = celui de t.identification sauf si emetteurForce est donne (copie appli : separee de analyser pour le bon en plusieurs photos)
+function reconnaitre(t, stock, emetteurForce) {
+  const emetteur = emetteurForce != null ? emetteurForce : t.identification && t.identification.emetteur;
   for (const row of t.rows) {
     // colonne reference non detectee (en-tete illisible) : le premier mot de la designation peut etre un EAN ou une reference exacte
     if (!row.ref && row.desig) {
@@ -609,11 +653,55 @@ export function analyser(itemsIn, stock) {
     const texteIgn = strip((row.desig || '') + ' ' + (row.ref || ''));
     if (RE_IGNORE.test(texteIgn) && !idFort) { row.statut = 'ignoree'; continue; }
     if (!row.desig && !row.ref) { row.statut = 'ignoree'; continue; }
-    row.proposition = proposer(row, stock, t.identification && t.identification.emetteur);
+    row.proposition = proposer(row, stock, emetteur);
     row.statut = 'article';
   }
-  t.controle = controleArith(t);
-  return t;
+}
+export { reconnaitre, proposer as proposerLigne };
+
+// ---------- bon en PLUSIEURS PHOTOS (copie appli) ----------
+// La photo 1 donne l'identite et les titres de colonnes (t.gabarit, en fractions de la largeur du tableau) ; les photos suivantes sont lues avec lireTableau(items, { gabarit }).
+// assemblerBon(ts, stock, { emetteur }) : ts = lireTableau() de chaque photo, la premiere avec son en-tete. Retourne UN bon : lignes dans l'ordre (photo 1, 2, ...), identification de la photo 1,
+// totaux de la derniere photo qui en porte, reconnaissance des articles sur l'ensemble, controle arithmetique, doublons SIGNALES (jamais retires) et alertes.
+const pageDe = (t) => { const m = /^(\d+)\/(\d+)$/.exec(extraireIdentification(t.texteLignes).page || ''); return m ? [Number(m[1]), Number(m[2])] : null; };
+const cleLigne = (r) => norm(r.ref) + '|' + norm(r.desig) + '|' + r.qty;
+export function assemblerBon(ts, stock, opts) {
+  opts = opts || {};
+  const t0 = ts[0], suite = ts.slice(1), pages = suite.map(pageDe);
+  // ordre : « Page k/m » quand toutes les photos suivantes la portent, sinon ordre de prise de vue ; la photo 1 reste l'identite
+  const ordre = suite.length > 1 && pages.every(Boolean) ? [t0].concat(suite.map((t, i) => ({ t, p: pages[i][0] })).sort((a, b) => a.p - b.p).map((x) => x.t)) : ts.slice();
+  const m = Object.assign({}, t0);
+  m.photos = ordre.length;
+  m.rows = [];
+  ordre.forEach((t, k) => t.rows.forEach((r, j) => m.rows.push(Object.assign({}, r, { photo: k + 1, debutPhoto: k > 0 && j === 0 }))));
+  m.totaux = Object.assign({}, t0.totaux);
+  for (const cle of ['ht', 'tva', 'tvaTaux', 'ttc', 'pieces', 'nbLignes']) for (const t of ordre) if (t.totaux[cle] != null) m.totaux[cle] = t.totaux[cle];
+  m.texteLignes = ordre.reduce((a, t, k) => a.concat(k ? ['--- photo ' + (k + 1) + ' ---'] : [], t.texteLignes), []);
+  m.nbBoites = ordre.reduce((s, t) => s + (t.nbBoites || 0), 0);
+  m.nbLignes = ordre.reduce((s, t) => s + (t.nbLignes || 0), 0);
+  m.prix = ordre.some((t) => t.prix);
+  m.alertes = [];
+  m.verdict = verdictLecture(m);
+  if (m.verdict) { m.identification = extraireIdentification([]); m.rows = []; m.controle = controleArith(m); return m; }
+  m.identification = extraireIdentification(t0.indexEntete != null ? t0.texteLignes.slice(0, t0.indexEntete) : []);
+  reconnaitre(m, stock, opts.emetteur);
+  // doublons : bloc de lignes consecutives identiques entre la fin de la photo k-1 et le debut de la photo k (signalement seulement)
+  let nbDoublons = 0;
+  for (let k = 2; k <= ordre.length; k++) {
+    const prec = m.rows.filter((r) => r.photo === k - 1), cur = m.rows.filter((r) => r.photo === k);
+    for (let n = Math.min(prec.length, cur.length); n >= 1; n--) {
+      const a = prec.slice(prec.length - n).map(cleLigne), b = cur.slice(0, n).map(cleLigne);
+      if (a.every((x, i) => x === b[i] && x !== '||null')) { cur.slice(0, n).forEach((r) => { r.doublon = true; nbDoublons++; }); break; }
+    }
+  }
+  m.controle = controleArith(m);
+  ordre.forEach((t, k) => { if (k > 0 && t.coupe) m.alertes.push({ code: 'coupe', photo: k + 1, texte: 'Photo ' + (k + 1) + ' : tableau coupé, reprenez la photo.' }); });
+  const somme = m.rows.filter((r) => r.statut !== 'ignoree').reduce((s, r) => s + (r.qty || 0), 0);
+  if (m.totaux.pieces != null && somme !== m.totaux.pieces) m.alertes.push({ code: 'manque', texte: 'Il manque peut-être une partie du bon : somme des quantités ' + somme + ', total pièces lu ' + m.totaux.pieces + ' (ou un doublon n\'est pas écarté).' });
+  const vues = ts.map(pageDe).filter(Boolean), total = vues.length ? Math.max(...vues.map((v) => v[1])) : 0;
+  if (total && new Set(vues.map((v) => v[0])).size < total) m.alertes.push({ code: 'page', texte: 'Il manque peut-être une page : ' + new Set(vues.map((v) => v[0])).size + ' page(s) lue(s) sur ' + total + '.' });
+  if (nbDoublons) m.alertes.push({ code: 'doublon', texte: nbDoublons + ' ligne(s) probablement en double entre deux photos : écartez-les avec la croix si besoin.' });
+  return m;
 }
 
 // ---------- controle arithmetique ----------
