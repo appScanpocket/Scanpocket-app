@@ -348,6 +348,8 @@ header #sync{flex:none}
 .bl-final{margin:8px 0}.bl-final[hidden]{display:none}.bl-final ul{margin:4px 0;padding-left:20px}.bl-final .btn{margin:4px 8px 0 0}
 .bl-verrou{opacity:.75}
 .bl-ctl{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}.bl-ctl th,.bl-ctl td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}.bl-ctl th{background:color-mix(in srgb,var(--line) 40%,var(--card))}.bl-ctl .n{text-align:right}
+.bl-diag{margin:10px 0;border:1px solid var(--line);border-radius:8px;padding:0 10px 8px}.bl-diag summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+.bl-diag pre{max-height:320px;overflow:auto;background:color-mix(in srgb,var(--line) 30%,var(--card));padding:8px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}.bl-diag .btn{margin-right:10px}
 .bl-texte pre{max-height:240px;overflow:auto;background:color-mix(in srgb,var(--line) 30%,var(--card));padding:8px;font-size:12px;white-space:pre-wrap}
 .bl-texte summary{cursor:pointer;min-height:36px;display:flex;align-items:center}
 /* agrandissement du document lu */
@@ -2654,8 +2656,25 @@ function blAlerteLigne(c, prixVisible) {
 }
 /* message du garde-fou de la lecture (verdict du moteur) */
 function blMessageVerdict(v) {
-  return v === 'tableau-introuvable' ? 'Ce document ne ressemble pas à un bon de livraison (tableau introuvable).'
-    : v === 'trop-incertaine' ? 'Lecture trop incertaine : reprends la photo (à plat, bonne lumière, tout le tableau dans le cadre).' : '';
+  return v === 'tableau-introuvable' ? 'Je n\'ai pas retrouvé le tableau du bon. Essayez de photographier à plat, tout le tableau dans le cadre, sans reflet, à 20-30 cm, ou ouvrez le diagnostic.'
+    : v === 'trop-incertaine' ? 'Lecture trop incertaine : les quantités sont illisibles sur la moitié des lignes. Reprenez la photo (à plat, tout le tableau dans le cadre, sans reflet, à 20-30 cm) ou ouvrez le diagnostic.' : '';
+}
+/* sans le droit « prix » : tout nombre a decimales (montant, prix, total) est remplace avant d'etre affiche ou copie */
+function blMasquerMontants(s) { return String(s == null ? '' : s).replace(/\d{1,3}(?:[ .]\d{3})*[,.]\d{1,2}(?!\d)|\d+[,.]\d{1,2}(?!\d)/g, '[montant]'); }
+/* texte brut du diagnostic de lecture d'une page (affiche dans l'ecran et copie par « Copier le diagnostic ») ; pg = { p (page lue), t (analyse du moteur), dim } */
+function blTexteDiagnostic(pg, prix, moteur) {
+  var t = pg.t, p = pg.p, d = t.diag || { candidats: [] }, m = function (s) { return prix ? String(s == null ? '' : s) : blMasquerMontants(s); };
+  var l = ['Diagnostic de lecture - moteur BL ' + moteur, 'Page ' + p.n + ' : ' + p.mode];
+  l.push(p.dim ? 'Image : ' + p.dim.src + ' px, envoyee a la lecture en ' + p.dim.lu + ' px (echelle x' + p.dim.e.toFixed(2) + ')' : 'Document PDF : texte numerique ou rendu, pas de photo');
+  l.push('Boites de texte lues : ' + (t.nbBoites != null ? t.nbBoites : p.items.length) + ' ; lignes de texte : ' + t.nbLignes + ' ; inclinaison estimee : ' + (t.angle || 0).toFixed(2) + ' deg');
+  l.push('Temps : lecture ' + p.secondes.toFixed(2) + ' s' + (p.prepa != null ? ' + preparation de l\'image ' + p.prepa.toFixed(2) + ' s' : ''));
+  l.push('Verdict : ' + (t.verdict || 'lecture exploitable') + ' ; en-tete : ' + (t.entete ? '"' + m(t.entete) + '" (' + (d.mode || '?') + ')' : 'NON TROUVE'));
+  l.push('Meilleures lignes candidates pour l\'en-tete (score ; types reconnus ; lignes de corps qui suivent) :');
+  if (!d.candidats.length) l.push('  aucune ligne ne contient un mot d\'en-tete (reference, designation, quantite, prix...)');
+  d.candidats.forEach(function (c, i) { l.push('  ' + (i + 1) + '. score ' + c.score.toFixed(1) + ' ; ' + c.types.join(', ') + ' ; corps ' + c.corps + ' : ' + m(c.texte)); });
+  l.push('Lignes de texte lues (' + t.texteLignes.length + ') :');
+  t.texteLignes.forEach(function (x, i) { l.push('  ' + (i + 1) + ': ' + m(x)); });
+  return l.join('\n');
 }
 /* Rapports : la liste des rapports et qui peut les voir (calculs purs, aucun acces a l'ecran).
    besoin = droit demande (voir PERMS) : hist = historique des mouvements, prix = prix d'achat. */
@@ -5411,7 +5430,7 @@ function htmlBlEnTete(prix) {
 }
 function htmlBlPage(m) {
   var h = '<section class="bl-page" data-p="' + m.i + '"><p class="hint bl-info">' + esc(m.info) + '</p>';
-  if (m.verdict) return h + '<p class="bl-rouge bl-verdict" role="alert">' + esc(m.verdict) + '</p>' + htmlBlIdentification(m) + '</section>';
+  if (m.verdict) return h + '<p class="bl-rouge bl-verdict" role="alert">' + esc(m.verdict) + '</p><div class="row"><button type="button" class="btn pri" data-act="diag">Ouvrir le diagnostic</button></div>' + htmlBlDiag(m) + htmlBlIdentification(m) + '</section>';
   h += htmlBlIdentification(m);
   h += '<p class="hint bl-nb"><b>' + m.nbDetail + '</b> lignes détail : ' + esc(m.repartition) + '</p>';
   h += '<div class="bl-bloc"><div class="bl-grid' + (m.prix ? ' bl-prix' : '') + '">' + htmlBlEnTete(m.prix) + m.lignes.map(function (l) { return htmlBlLigne(l, m.prix); }).join('') + '</div>';
@@ -5420,7 +5439,11 @@ function htmlBlPage(m) {
   h += '<div class="row bl-valider"><button type="button" class="btn" data-act="valider">Simulation réception</button><button type="button" class="btn pri" data-act="validerfinal">Valider</button></div><div class="bl-cadre bl-final" data-final hidden></div></div>';
   h += '<div data-ctl>' + htmlBlControle(m.ctl) + '</div>';
   if (m.texteLu) h += '<details class="bl-texte"><summary>Texte lu (lignes regroupées)</summary><pre>' + esc(m.texteLu) + '</pre></details>';
-  return h + '</section>';
+  return h + htmlBlDiag(m) + '</section>';
+}
+/* repli « Diagnostic de lecture » : ce que le moteur a lu (texte brut, copiable) */
+function htmlBlDiag(m) {
+  return '<details class="bl-diag"><summary>Diagnostic de lecture</summary><pre>' + esc(m.diag) + '</pre><button type="button" class="btn" data-act="copierdiag">Copier le diagnostic</button><span class="hint bl-copie" role="status"></span></details>';
 }
 /* Ecran « Magasins » (HTML pur) : la liste des magasins avec « Retirer », et la saisie d'un nouveau magasin. noms = Magasins.liste() (le principal d'abord) */
 function htmlMagasinsEntete() { return '<h2>Magasins</h2><p class="sub">Les lignes de stock choisissent leur magasin dans cette liste. « ' + esc(DEFMAG) + ' » existe toujours.</p>'; }
@@ -8025,7 +8048,7 @@ function pagesImageBl(f, jeton) {
   return bitmapBl(f).then(function (bmp) { /* d'abord le decodage : une image illisible echoue sans meme charger l'OCR */
     return travailleurBl(jeton).then(function () {
       var t0 = performance.now(); /* le chrono demarre APRES l'initialisation de l'OCR : elle n'entre jamais dans « preparation de l'image » */
-      var plan = blPlanRedimension(bmp.width, bmp.height, BL.R.CIBLE_LARGEUR);
+      var sw = bmp.width, sh = bmp.height, plan = blPlanRedimension(bmp.width, bmp.height, BL.R.CIBLE_LARGEUR);
       cv = document.createElement('canvas'); cv.width = plan.w2; cv.height = plan.h2;
       var ctx = cv.getContext('2d'); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bmp, 0, 0, plan.w2, plan.h2);
       var ev = Math.min(1, 300 / bmp.width), vc = document.createElement('canvas'); vc.width = Math.max(1, Math.round(bmp.width * ev)); vc.height = Math.max(1, Math.round(bmp.height * ev));
@@ -8034,7 +8057,7 @@ function pagesImageBl(f, jeton) {
       var r = BL.M.pre.nettoyer(cv); nettoye = r.canvas;
       var t1 = performance.now();
       return ocrBl(nettoye, plan.e, jeton).then(function (items) {
-        return [{ n: 1, mode: 'OCR ' + BL.R.LANGUES.join('+') + ' (x' + plan.e.toFixed(2) + ', nettoyé, redressé ' + r.angle.toFixed(2) + ' deg)', items: items, secondes: (performance.now() - t1) / 1000, prepa: (t1 - t0) / 1000 }];
+        return [{ n: 1, mode: 'OCR ' + BL.R.LANGUES.join('+') + ' (x' + plan.e.toFixed(2) + ', nettoyé, redressé ' + r.angle.toFixed(2) + ' deg)', items: items, secondes: (performance.now() - t1) / 1000, prepa: (t1 - t0) / 1000, dim: { src: sw + ' x ' + sh, lu: plan.w2 + ' x ' + plan.h2, e: plan.e } }];
       });
     }).catch(function (e) { if (bmp.close) bmp.close(); throw e; });
   }).then(function (p) { liberer(); return p; }, function (e) { liberer(); throw e; });
@@ -8102,7 +8125,7 @@ function modelePageBl(pg, i) {
   var t = pg.t, p = pg.p, idf = t.identification || {}, prix = pg.prix;
   var champs = [['emetteur', 'Émetteur', idf.emetteur], ['numero', 'N° de bon de livraison', idf.numeros && idf.numeros.length ? idf.numeros.join(', ') : null], ['date', 'Date', idf.date], ['reference', 'Votre référence / commande', idf.reference_client],
     ['transporteur', 'Transporteur', idf.transporteur], ['colis', 'Colis', idf.colis], ['page', 'Page', idf.page]];
-  var m = { i: i, prix: prix, verdict: blMessageVerdict(t.verdict), ident: champs.map(function (c) { return { k: c[0], l: c[1], v: c[2] }; }),
+  var m = { i: i, prix: prix, verdict: blMessageVerdict(t.verdict), diag: blTexteDiagnostic(pg, BL.prix, BL.M.lec.VERSION_LECTURE), ident: champs.map(function (c) { return { k: c[0], l: c[1], v: c[2] }; }),
     info: 'Page ' + p.n + ' : ' + p.mode + ' · lecture ' + p.secondes.toFixed(2) + ' s' + (p.prepa != null ? ' (+ préparation de l\'image ' + p.prepa.toFixed(2) + ' s)' : '') + ' · ' + p.items.length + ' boîtes de texte' };
   if (t.verdict) return m;
   var ok = 0, ver = 0, non = 0, ign = 0;
@@ -8195,6 +8218,8 @@ function clicBl(ev) {
   if (b.id === 'blphoto') { $('blinp1').click(); return; }
   if (b.id === 'blfichier') { $('blinp2').click(); return; }
   var act = b.getAttribute('data-act'), k = act ? contexteBl(b) : null; if (!k) return;
+  if (act === 'diag') { var dg = k.sec.querySelector('.bl-diag'); dg.open = true; dg.scrollIntoView({ block: 'start' }); return; }
+  if (act === 'copierdiag') { copierDiagBl(k.sec.querySelector('.bl-diag pre').textContent, k.sec.querySelector('.bl-copie')); return; }
   if (act === 'viderAlias') { BL.M.lec.ALIAS.clear(); majAliasBl(); return; }
   if (act === 'valider' || act === 'validerfinal' || act === 'continuer' || act === 'annulerval') { validerBl(act, k); return; }
   if (!k.art) return;
@@ -8224,6 +8249,17 @@ function clicBl(ev) {
   }
   else return;
   majLigneBl(k.art, x); majResumeBl(k.sec, k.pg);
+}
+/* « Copier le diagnostic » : presse-papiers (texte brut) ; sinon selection a la main */
+function copierDiagBl(texte, etat) {
+  var dit = function (m) { etat.textContent = m; };
+  var secours = function () {
+    try {
+      var ta = document.createElement('textarea'); ta.value = texte; ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0'; document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok = document.execCommand('copy'); document.body.removeChild(ta); dit(ok ? '✓ Diagnostic copié.' : '✗ Copie impossible : sélectionne le texte et copie-le à la main.');
+    } catch (e) { dit('✗ Copie impossible : sélectionne le texte et copie-le à la main.'); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(texte).then(function () { dit('✓ Diagnostic copié.'); }, secours); else secours();
 }
 /* recherche d'article dans le stock : seulement au clic sur la loupe ou a Entree (pas a la frappe), 10 resultats au plus */
 function lancerRechBl(art) {
@@ -8754,7 +8790,7 @@ function brancherChampsDate() {
   document.addEventListener('change', function (ev) { if (ev.target.getAttribute && ev.target.hasAttribute('data-calsel')) { ev.stopPropagation(); choisirDateCalendrier(ev.target); } }, true);
 }
 /* Coquille de l'application : choisit l'ecran selon l'etat d'acces (etatAcces), tient la synchro periodique et la mise en veille */
-var VERSION = '1.0.8';
+var VERSION = '1.0.9';
 
 /* accueil : scanner, blocs « A traiter » / valeur / taches (selon le role), liste des pieces, barre du bas */
 function htmlAccueil(auth, roles) {

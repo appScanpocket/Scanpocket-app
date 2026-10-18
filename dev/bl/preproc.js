@@ -1,4 +1,4 @@
-// COPIE DU PILOTE 0.16 (Pilote_bonlivraison\preproc.js, 4660 octets), SANS CHANGEMENT. Utilisee par EnvDev\src\ecrans\bon_livraison.js.
+// COPIE DU PILOTE 0.16 (Pilote_bonlivraison\preproc.js, 4660 octets), ADAPTEE : angleProjection() cherche l'inclinaison de -10 a +10 degres (pilote : -5 a +5), pas de 0,5 puis affinage. Utilisee par EnvDev\src\ecrans\bon_livraison.js.
 // preproc.js - nettoyage d'image AVANT l'OCR, dans le navigateur (canvas), sans bibliotheque.
 // Etapes : niveaux de gris, flou leger, seuil local, redressement (projection), suppression des lignes du tableau.
 // Retourne { canvas, angle }.
@@ -47,7 +47,7 @@ function angleProjection(b, w, h) {
   const pas = Math.max(1, Math.round(w / 700));
   for (let y = 0; y < h; y += pas) for (let x = 0; x < w; x += pas) if (b[y * w + x]) pts.push(x, y);
   let best = 0, bs = -1;
-  for (let a = -5; a <= 5.0001; a += 0.25) {
+  const essayer = (a) => {
     const t = Math.tan((a * Math.PI) / 180);
     const hist = new Map();
     for (let i = 0; i < pts.length; i += 2) {
@@ -57,7 +57,11 @@ function angleProjection(b, w, h) {
     let s = 0;
     for (const v of hist.values()) s += v * v;
     if (s > bs * 1.0005 || (Math.abs(s - bs) <= bs * 0.0005 && Math.abs(a) < Math.abs(best))) { bs = Math.max(bs, s); best = a; }
-  }
+  };
+  // copie appli : recherche de -10 a +10 degres (pas de 0,5) puis affinage au quart de degre autour du meilleur (le pilote cherchait de -5 a +5)
+  for (let a = -10; a <= 10.0001; a += 0.5) essayer(a);
+  const centre = best;
+  for (let a = centre - 0.5; a <= centre + 0.5001; a += 0.25) if (Math.abs(a) <= 10.0001) essayer(a);
   return best;
 }
 function enleverLignes(b, w, h, runH, runV) {
