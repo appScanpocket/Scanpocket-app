@@ -6,6 +6,8 @@
 // Tout le reste (chemins, taille de la photo) se regle ici, nulle part ailleurs.
 export const LANGUES = ['fra'];
 export const CIBLE_LARGEUR = 2400; // largeur de l'image envoyee a la lecture : reduite au-dela, agrandie (jusqu'a x4) en dessous ; ne pas descendre sous 2400 (mesure)
+export const MAX_PHOTOS = 5; // bon en plusieurs photos : nombre maximum de photos par bon
+export const RECO_PROVISOIRE = true; // vrai : propositions d'articles PROVISOIRES apres chaque photo (definitives a « Terminer ») ; faux : lecture seule jusqu'a « Terminer »
 
 const base = new URL('./', import.meta.url).href; // dossier EnvDev/bl/ (sur le site : dev/bl/, test/bl/ ...)
 export const CHEMINS = {
