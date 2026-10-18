@@ -140,7 +140,7 @@ export function estimerAngle(items) {
   if (items.length < 6) return 0;
   const H = median(items.map((i) => i.y1 - i.y0)) || 10;
   let best = 0, bestS = -1;
-  for (let a = -5; a <= 5.0001; a += 0.25) {
+  for (let a = -10; a <= 10.0001; a += 0.25) { // copie appli : -10 a +10 degres (pilote : -5 a +5)
     const k = Math.tan((a * Math.PI) / 180);
     const bins = new Map();
     for (const i of items) {
@@ -201,19 +201,103 @@ function typeEntete(t) {
   return null;
 }
 
-function trouverEntete(lignes) {
-  for (let i = 0; i < lignes.length; i++) {
-    const cols = [];
-    for (const c of lignes[i].cells) {
-      const ty = typeEntete(c.t);
-      if (ty && !cols.some((x) => x.type === ty)) cols.push({ type: ty, x0: c.x0, x1: c.x1, cx: c.cx, texte: c.t });
+// --- en-tete TOLERANT (copie appli, pour les photos d'ecran / de papier : OCR bruite) ---
+// mots d'en-tete avec une faute d'OCR (distance d'edition 1, 2 pour les mots de 9 lettres et plus ; mots de moins de 5 lettres : exacts seulement)
+const MOTS_ENTETE = [['cmd', 'commandee'], ['cmd', 'commande'], ['reliq', 'reliquat'], ['desig', 'designation'], ['desig', 'description'], ['desig', 'libelle'], ['desig', 'produit'], ['desig', 'intitule'],
+  ['qty', 'quantite'], ['qty', 'livree'], ['qty', 'livre'], ['ref', 'reference'], ['pu', 'unitaire'], ['montant', 'montant']];
+function typeEnteteFlou(t) {
+  const ty = typeEntete(t);
+  if (ty) return { type: ty, flou: false };
+  for (const tk of toks(t)) {
+    if (tk.length < 5) continue;
+    for (const [type, mot] of MOTS_ENTETE) {
+      const d = mot.length >= 9 ? 2 : 1;
+      if (Math.abs(tk.length - mot.length) <= d && lev(tk, mot, d) <= d) return { type, flou: true };
     }
-    if (cols.length >= 2 && cols.some((c) => c.type === 'desig') && cols.some((c) => c.type === 'qty')) return { index: i, cols };
   }
   return null;
 }
-
+function colonnesDe(cells, flou) {
+  const cols = [];
+  for (const c of cells) {
+    const r = flou ? typeEnteteFlou(c.t) : (typeEntete(c.t) ? { type: typeEntete(c.t), flou: false } : null);
+    if (r && !cols.some((x) => x.type === r.type)) cols.push({ type: r.type, x0: c.x0, x1: c.x1, cx: c.cx, texte: c.t, flou: r.flou });
+  }
+  return cols;
+}
+const aType = (cols, t) => cols.some((c) => c.type === t);
 const RE_FIN_TABLEAU = /\b(sous.?total|total|tva|a payer|net a payer|suite page|montant ht|montant tva)\b/;
+const estNombreSimple = (t) => { const x = fixNum(t).replace(/\s+/g, ''); return /^\d{1,5}([.,]\d{1,3})?$/.test(x); };
+// lignes de corps de tableau apres la ligne i : au moins un nombre simple ET un texte (3 lettres ou une reference de 8 chiffres) ; s'arrete au pied (total, TVA...)
+function corpsDe(lignes, i) {
+  const out = [];
+  for (let k = i + 1; k < lignes.length && out.length < 14; k++) {
+    const L = lignes[k], sn = strip(L.texte).replace(/[^a-z0-9 %]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (RE_FIN_TABLEAU.test(sn)) break;
+    const nombres = L.cells.filter((c) => estNombreSimple(c.t)), texte = L.cells.some((c) => /[A-Za-zÀ-ÿ]{3}/.test(c.t) || /\d{8,}/.test(c.t.replace(/\s/g, '')));
+    if (nombres.length && texte) out.push({ ligne: L, nombres });
+  }
+  return out;
+}
+// colonne des quantites deduite de la position des nombres entiers du corps : le groupe le plus a droite (et a gauche des colonnes de prix connues) present sur la plupart des lignes
+function deduireQty(corps, cols, H) {
+  const groupes = [];
+  for (const d of corps) for (const c of d.nombres) {
+    if (/[.,]/.test(c.t)) continue; // les prix ont des decimales
+    let g = groupes.find((x) => Math.abs(x.cx - c.cx) < H * 2.5);
+    if (!g) { g = { cx: c.cx, cells: [], lignes: new Set() }; groupes.push(g); }
+    g.cells.push(c); g.lignes.add(d.ligne); g.cx = g.cells.reduce((s, x) => s + x.cx, 0) / g.cells.length;
+  }
+  const besoin = Math.max(2, Math.ceil(corps.length * 0.6));
+  const xPrix = Math.min(...cols.filter((c) => ['pu', 'montant', 'remise'].includes(c.type)).map((c) => c.x0), Infinity);
+  const ok = groupes.filter((g) => g.lignes.size >= besoin && g.cx < xPrix).sort((a, b) => b.cx - a.cx);
+  if (!ok.length) return null;
+  const g = ok[0];
+  return { type: 'qty', x0: Math.min(...g.cells.map((c) => c.x0)), x1: Math.max(...g.cells.map((c) => c.x1)), cx: g.cx, texte: '(deduite)', flou: true, deduite: true };
+}
+function trouverEntete(lignes, H) {
+  // 1. d'origine : une ligne, mots d'en-tete exacts, designation + quantite
+  for (let i = 0; i < lignes.length; i++) {
+    const cols = colonnesDe(lignes[i].cells, false);
+    if (cols.length >= 2 && aType(cols, 'desig') && aType(cols, 'qty')) return { index: i, cols, mode: 'exact' };
+  }
+  // 2. une ligne, mots d'en-tete avec une faute d'OCR
+  for (let i = 0; i < lignes.length; i++) {
+    const cols = colonnesDe(lignes[i].cells, true);
+    if (cols.length >= 2 && aType(cols, 'desig') && aType(cols, 'qty')) return { index: i, cols, mode: 'tolerant' };
+  }
+  // 3. en-tete sur DEUX lignes de texte consecutives (mot coupe, retour a la ligne dans la cellule, OCR qui separe les lignes)
+  for (let i = 0; i + 1 < lignes.length; i++) {
+    if (lignes[i + 1].cy - lignes[i].cy > H * 3.5) continue;
+    const a = colonnesDe(lignes[i].cells, true), b = colonnesDe(lignes[i + 1].cells, true);
+    if (!a.length || !b.length) continue;
+    const cols = a.concat(b.filter((c) => !aType(a, c.type)));
+    if (aType(cols, 'desig') && aType(cols, 'qty')) return { index: i + 1, cols, mode: 'deux-lignes', texte: lignes[i].texte + ' / ' + lignes[i + 1].texte };
+  }
+  // 4. en-tete incomplet mais corps de tableau reconnaissable : colonnes manquantes deduites des positions (seulement si peu risque : pas de colonne « commande » ambigue)
+  for (let i = 0; i < lignes.length; i++) {
+    const cols = colonnesDe(lignes[i].cells, true);
+    if (!cols.length || aType(cols, 'cmd')) continue;
+    const corps = corpsDe(lignes, i);
+    if (corps.length < 2 || !(cols.length >= 2 || aType(cols, 'ref') || aType(cols, 'desig'))) continue;
+    const tous = cols.slice();
+    if (!aType(tous, 'qty')) { const q = deduireQty(corps, tous, H); if (!q) continue; tous.push(q); }
+    if (!aType(tous, 'desig')) {
+      const qty = tous.find((c) => c.type === 'qty'), ref = tous.find((c) => c.type === 'ref');
+      const finRef = ref ? Math.max(ref.x1, ...corps.map((d) => d.ligne.cells[0]).filter((c) => c && c.x1 < qty.x0 && /\d/.test(c.t) && !/\s/.test(c.t)).map((c) => c.x1)) : Math.min(...corps.map((d) => d.ligne.cells[0].x0));
+      if (!(qty.x0 > finRef)) continue;
+      tous.push({ type: 'desig', x0: finRef + 1, x1: qty.x0 - 1, cx: (finRef + qty.x0) / 2, texte: '(deduite)', flou: true, deduite: true });
+    }
+    return { index: i, cols: tous, mode: 'deduit', texte: lignes[i].texte + ' (colonnes deduites des positions)' };
+  }
+  return null;
+}
+// meilleures lignes candidates pour l'en-tete (diagnostic) : lignes triees par nombre de types de colonnes reconnus
+function candidatsEntete(lignes) {
+  return lignes.map((l, index) => ({ index, texte: l.texte, cols: colonnesDe(l.cells, true) })).filter((x) => x.cols.length)
+    .map((x) => ({ index: x.index, texte: x.texte, score: x.cols.reduce((s, c) => s + (c.flou ? 0.7 : 1), 0), types: x.cols.map((c) => c.type + (c.flou ? '~' : '')), corps: corpsDe(lignes, x.index).length }))
+    .sort((a, b) => b.score - a.score || a.index - b.index).slice(0, 5);
+}
 const RE_IGNORE = /\b(frais|port|transport|livraison|remise|escompte|rabais|total|sous.?total|tva|emballage|acompte|taxe|eco.?participation|supplement|forfait)\b/;
 
 function colonneProche(cell, cols) {
@@ -240,8 +324,8 @@ function cleanNum(txt) {
 
 export function lireTableau(itemsIn) {
   const { lignes, angle, H } = grouperLignes(itemsIn);
-  const ent = trouverEntete(lignes);
-  const res = { angle, nbLignes: lignes.length, texteLignes: lignes.map((l) => l.texte), entete: null, colonnes: [], rows: [], totaux: { ht: null, tva: null, tvaTaux: null, ttc: null, pieces: null }, prix: false };
+  const ent = trouverEntete(lignes, H);
+  const res = { angle, H, nbLignes: lignes.length, nbBoites: itemsIn.length, texteLignes: lignes.map((l) => l.texte), diag: { candidats: candidatsEntete(lignes), mode: ent ? ent.mode : null }, entete: null, colonnes: [], rows: [], totaux: { ht: null, tva: null, tvaTaux: null, ttc: null, pieces: null }, prix: false };
   // nombre de lignes indique sur le document (en-tete ou pied) : « nb lignes 4 », « nombre d'articles : 4 »...
   res.totaux.nbLignes = null;
   for (const L of lignes) {
@@ -251,7 +335,7 @@ export function lireTableau(itemsIn) {
     if (m) { res.totaux.nbLignes = parseInt(m[1], 10); break; }
   }
   if (!ent) return res;
-  res.entete = lignes[ent.index].texte;
+  res.entete = ent.texte || lignes[ent.index].texte;
   res.indexEntete = ent.index;
   res.colonnes = ent.cols.map((c) => c.type);
   res.prix = res.colonnes.includes('pu') || res.colonnes.includes('montant');
